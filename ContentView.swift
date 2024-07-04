@@ -32,13 +32,13 @@ struct ContentView: View {
                     Label("Settings", systemImage: "gear")
                 }
         }
-        .accentColor(colors.accent)
-        .background(colors.background.edgesIgnoringSafeArea(.all))
-        .onChange(of: settingsManager.colorScheme) { _, newValue in
+        .accentColor(settingsManager.accentColor)
+        .background(colors.background.ignoresSafeArea())
+        .onChange(of: settingsManager.colorScheme) { newValue in
             updateColorScheme(newValue)
         }
-        .onChange(of: userInterfaceStyle) { _, newValue in
-            updateColorScheme(AppColorScheme(rawValue: newValue.rawValue) ?? .unspecified)
+        .onChange(of: userInterfaceStyle) { newValue in
+            updateColorScheme(AppColorScheme(uiStyle: newValue))
         }
     }
     
@@ -59,6 +59,19 @@ struct ContentView: View {
         
         userInterfaceStyle = style
         settingsManager.colorScheme = scheme
+    }
+}
+
+extension AppColorScheme {
+    init(uiStyle: UIUserInterfaceStyle) {
+        switch uiStyle {
+        case .light:
+            self = .light
+        case .dark:
+            self = .dark
+        default:
+            self = .unspecified
+        }
     }
 }
 

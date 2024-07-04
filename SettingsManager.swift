@@ -1,6 +1,12 @@
 import SwiftUI
 import Combine
 
+enum AppColorScheme: String {
+    case light
+    case dark
+    case unspecified
+}
+
 class SettingsManager: ObservableObject {
     private let defaults = UserDefaults.standard
     
@@ -11,11 +17,15 @@ class SettingsManager: ObservableObject {
         }
     }
     
-    @Published var accentColor: Int {
+    @Published var accentColorIndex: Int {
         didSet {
-            defaults.set(accentColor, forKey: "accentColor")
+            defaults.set(accentColorIndex, forKey: "accentColorIndex")
         }
     }
+    
+    @Published var accentColor: Color
+    
+    let accentColors: [Color] = [.blue, .red, .green, .orange, .purple, .pink]
     
     // MARK: - Default Shift Settings
     @Published var payRate: Double {
@@ -64,8 +74,13 @@ class SettingsManager: ObservableObject {
     
     // MARK: - Initialization
     init() {
-        self.colorScheme = AppColorScheme(rawValue: defaults.integer(forKey: "colorScheme")) ?? .unspecified
-        self.accentColor = defaults.integer(forKey: "accentColor")
+        let colorSchemeString = defaults.string(forKey: "colorScheme") ?? ""
+        self.colorScheme = AppColorScheme(rawValue: colorSchemeString) ?? .unspecified
+        
+        let tempAccentColorIndex = defaults.integer(forKey: "accentColorIndex")
+        self.accentColorIndex = tempAccentColorIndex
+        self.accentColor = accentColors[safe: tempAccentColorIndex] ?? .blue
+        
         self.payRate = defaults.double(forKey: "payRate")
         self.defaultShiftDuration = defaults.double(forKey: "defaultShiftDuration")
         self.currency = defaults.string(forKey: "currency") ?? "USD"
@@ -89,7 +104,8 @@ class SettingsManager: ObservableObject {
     // MARK: - Reset to Defaults
     func reset() {
         colorScheme = .unspecified
-        accentColor = 0
+        accentColorIndex = 0
+        accentColor = accentColors[0]
         payRate = 15.0
         defaultShiftDuration = 8.0
         currency = "USD"
@@ -118,3 +134,9 @@ class SettingsManager: ObservableObject {
     }
 }
 
+// Extension to safely access array elements
+extension Array {
+    subscript(safe index: Index) -> Element? {
+        return indices.contains(index) ? self[index] : nil
+    }
+}

@@ -14,7 +14,7 @@ struct ShiftyApp: App {
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
                 .environmentObject(settingsManager)
                 .withAppColorScheme()  // Apply our custom color scheme
-                .accentColor(accentColors[settingsManager.accentColor])
+                .accentColor(accentColors[settingsManager.accentColorIndex])
                 .onChange(of: settingsManager.colorScheme) { _ in
                     updateColorScheme()
                 }
@@ -36,13 +36,6 @@ struct ShiftyApp: App {
             window.overrideUserInterfaceStyle = .unspecified
         }
     }
-}
-
-// Define AppColorScheme if it's not in a separate file
-enum AppColorScheme: Int {
-    case unspecified = 0
-    case light = 1
-    case dark = 2
 }
 
 // Add this extension to your AppColor struct
