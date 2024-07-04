@@ -13,22 +13,11 @@ struct ShiftyApp: App {
             ContentView()
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
                 .environmentObject(settingsManager)
-                .preferredColorScheme(colorScheme)
+                .withAppColorScheme()  // Apply our custom color scheme
                 .accentColor(accentColors[settingsManager.accentColor])
                 .onChange(of: settingsManager.colorScheme) { _ in
                     updateColorScheme()
                 }
-        }
-    }
-
-    private var colorScheme: ColorScheme? {
-        switch settingsManager.colorScheme {
-        case .light:
-            return .light
-        case .dark:
-            return .dark
-        case .unspecified:
-            return nil
         }
     }
 
@@ -55,3 +44,18 @@ enum AppColorScheme: Int {
     case light = 1
     case dark = 2
 }
+
+// Add this extension to your AppColor struct
+extension AppColor {
+    static func forScheme(_ scheme: AppColorScheme) -> AppColor {
+        switch scheme {
+        case .light:
+            return .light
+        case .dark:
+            return .dark
+        case .unspecified:
+            return .light  // Default to light, or you could use a system-based default
+        }
+    }
+}
+

@@ -117,3 +117,4 @@ class SettingsManager: ObservableObject {
         return earnings
     }
 }
+

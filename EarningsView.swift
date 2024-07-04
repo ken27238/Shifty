@@ -8,6 +8,7 @@ struct EarningsView: View {
         animation: .default)
     private var shifts: FetchedResults<Shift>
     @EnvironmentObject var settingsManager: SettingsManager
+    @Environment(\.appColor) private var colors
     
     @State private var selectedTimeframe = 1 // Default to "This Month"
     let timeframes = ["This Week", "This Month", "This Year", "All Time"]
@@ -15,7 +16,7 @@ struct EarningsView: View {
     var body: some View {
         NavigationView {
             List {
-                Section(header: Text("Timeframe").foregroundColor(Color.text)) {
+                Section(header: Text("Timeframe").foregroundColor(colors.text)) {
                     Picker("Timeframe", selection: $selectedTimeframe) {
                         ForEach(0..<timeframes.count) { index in
                             Text(timeframes[index]).tag(index)
@@ -24,31 +25,31 @@ struct EarningsView: View {
                     .pickerStyle(SegmentedPickerStyle())
                 }
                 
-                Section(header: Text("Summary").foregroundColor(Color.text)) {
+                Section(header: Text("Summary").foregroundColor(colors.text)) {
                     HStack {
                         Text("Total Earnings")
                         Spacer()
                         Text(formatCurrency(calculateTotalEarnings()))
                             .fontWeight(.bold)
                     }
-                    .foregroundColor(Color.text)
+                    .foregroundColor(colors.text)
                     
                     HStack {
                         Text("Total Hours")
                         Spacer()
                         Text(String(format: "%.1f", calculateTotalHours()))
                     }
-                    .foregroundColor(Color.text)
+                    .foregroundColor(colors.text)
                     
                     HStack {
                         Text("Average Hourly Rate")
                         Spacer()
                         Text(formatCurrency(calculateAverageHourlyRate()))
                     }
-                    .foregroundColor(Color.text)
+                    .foregroundColor(colors.text)
                 }
                 
-                Section(header: Text("Breakdown").foregroundColor(Color.text)) {
+                Section(header: Text("Breakdown").foregroundColor(colors.text)) {
                     ForEach(groupedShifts, id: \.0) { date, shiftsForDate in
                         NavigationLink(destination: DailyEarningsView(date: date, shifts: shiftsForDate)) {
                             HStack {
@@ -56,14 +57,14 @@ struct EarningsView: View {
                                 Spacer()
                                 Text(formatCurrency(calculateEarnings(for: shiftsForDate)))
                             }
-                            .foregroundColor(Color.text)
+                            .foregroundColor(colors.text)
                         }
                     }
                 }
             }
             .listStyle(InsetGroupedListStyle())
             .navigationTitle("Earnings")
-            .background(Color.background.edgesIgnoringSafeArea(.all))
+            .background(colors.background.edgesIgnoringSafeArea(.all))
         }
     }
     
@@ -139,6 +140,7 @@ struct DailyEarningsView: View {
     let date: Date
     let shifts: [Shift]
     @EnvironmentObject var settingsManager: SettingsManager
+    @Environment(\.appColor) private var colors
     
     var body: some View {
         List {
@@ -146,21 +148,21 @@ struct DailyEarningsView: View {
                 HStack {
                     VStack(alignment: .leading) {
                         Text("\(shift.startTime ?? Date(), style: .time) - \(shift.endTime ?? Date(), style: .time)")
-                            .foregroundColor(Color.text)
+                            .foregroundColor(colors.text)
                         if let notes = shift.notes, !notes.isEmpty {
                             Text(notes)
                                 .font(.caption)
-                                .foregroundColor(Color.secondaryText)
+                                .foregroundColor(colors.secondaryText)
                         }
                     }
                     Spacer()
                     Text(formatCurrency(calculateEarnings(for: shift)))
-                        .foregroundColor(Color.text)
+                        .foregroundColor(colors.text)
                 }
             }
         }
         .navigationTitle(formatDate(date))
-        .background(Color.background.edgesIgnoringSafeArea(.all))
+        .background(colors.background.edgesIgnoringSafeArea(.all))
     }
     
     private func calculateEarnings(for shift: Shift) -> Double {
@@ -188,10 +190,13 @@ struct EarningsView_Previews: PreviewProvider {
     static var previews: some View {
         EarningsView()
             .environmentObject(SettingsManager())
-            .environment(\.colorScheme, .light)
+            .withAppColorScheme()
+            .previewDisplayName("Light Mode")
         
         EarningsView()
             .environmentObject(SettingsManager())
-            .environment(\.colorScheme, .dark)
+            .withAppColorScheme()
+            .preferredColorScheme(.dark)
+            .previewDisplayName("Dark Mode")
     }
 }

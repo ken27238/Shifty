@@ -1,7 +1,8 @@
 import SwiftUI
 
 struct ContentView: View {
-    @Environment(\.colorScheme) var colorScheme
+    @EnvironmentObject var settingsManager: SettingsManager
+    @Environment(\.appColor) private var colors
     @AppStorage("userInterfaceStyle") private var userInterfaceStyle: UIUserInterfaceStyle = .unspecified
 
     var body: some View {
@@ -31,30 +32,47 @@ struct ContentView: View {
                     Label("Settings", systemImage: "gear")
                 }
         }
-        .accentColor(Color.accent)
-        .background(Color.background.edgesIgnoringSafeArea(.all))
-        .preferredColorScheme(colorScheme)
-        .onChange(of: userInterfaceStyle) { oldValue, newValue in
+        .accentColor(colors.accent)
+        .background(colors.background.edgesIgnoringSafeArea(.all))
+        .onChange(of: settingsManager.colorScheme) { _, newValue in
             updateColorScheme(newValue)
+        }
+        .onChange(of: userInterfaceStyle) { _, newValue in
+            updateColorScheme(AppColorScheme(rawValue: newValue.rawValue) ?? .unspecified)
         }
     }
     
-    private func updateColorScheme(_ style: UIUserInterfaceStyle) {
-        switch style {
+    private func updateColorScheme(_ scheme: AppColorScheme) {
+        let style: UIUserInterfaceStyle
+        switch scheme {
         case .light:
-            UIApplication.shared.connectedScenes
-                .compactMap { $0 as? UIWindowScene }
-                .forEach { $0.windows.first?.overrideUserInterfaceStyle = .light }
+            style = .light
         case .dark:
-            UIApplication.shared.connectedScenes
-                .compactMap { $0 as? UIWindowScene }
-                .forEach { $0.windows.first?.overrideUserInterfaceStyle = .dark }
+            style = .dark
         case .unspecified:
-            UIApplication.shared.connectedScenes
-                .compactMap { $0 as? UIWindowScene }
-                .forEach { $0.windows.first?.overrideUserInterfaceStyle = .unspecified }
-        @unknown default:
-            break
+            style = .unspecified
         }
+        
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .forEach { $0.windows.first?.overrideUserInterfaceStyle = style }
+        
+        userInterfaceStyle = style
+        settingsManager.colorScheme = scheme
+    }
+}
+
+struct ContentView_Previews: PreviewProvider {
+    static var previews: some View {
+        ContentView()
+            .environmentObject(SettingsManager())
+            .withAppColorScheme()
+            .previewDisplayName("Light Mode")
+        
+        ContentView()
+            .environmentObject(SettingsManager())
+            .withAppColorScheme()
+            .preferredColorScheme(.dark)
+            .previewDisplayName("Dark Mode")
     }
 }

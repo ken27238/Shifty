@@ -8,6 +8,7 @@ struct HomeView: View {
         animation: .default)
     private var shifts: FetchedResults<Shift>
     @EnvironmentObject var settingsManager: SettingsManager
+    @Environment(\.appColor) private var colors
     
     var body: some View {
         NavigationView {
@@ -19,7 +20,7 @@ struct HomeView: View {
             .listStyle(InsetGroupedListStyle())
             .navigationTitle("Home")
         }
-        .background(Color.background.edgesIgnoringSafeArea(.all))
+        .background(colors.background.edgesIgnoringSafeArea(.all))
     }
     
     private var todayShiftSection: some View {
@@ -28,7 +29,7 @@ struct HomeView: View {
                 shiftRow(shift: todayShift)
             } else {
                 Label("No shift scheduled for today", systemImage: "calendar.badge.exclamationmark")
-                    .foregroundColor(Color.secondaryText)
+                    .foregroundColor(colors.secondaryText)
             }
         }
     }
@@ -39,7 +40,7 @@ struct HomeView: View {
                 shiftRow(shift: nextShift)
             } else {
                 Label("No upcoming shifts", systemImage: "calendar.badge.minus")
-                    .foregroundColor(Color.secondaryText)
+                    .foregroundColor(colors.secondaryText)
             }
         }
     }
@@ -50,19 +51,19 @@ struct HomeView: View {
                 Label("Total Shifts", systemImage: "number.circle")
                 Spacer()
                 Text("\(shiftsThisWeek.count)")
-                    .foregroundColor(Color.secondaryText)
+                    .foregroundColor(colors.secondaryText)
             }
             HStack {
                 Label("Total Hours", systemImage: "clock")
                 Spacer()
                 Text(String(format: "%.1f", totalHoursThisWeek))
-                    .foregroundColor(Color.secondaryText)
+                    .foregroundColor(colors.secondaryText)
             }
             HStack {
                 Label("Total Earnings", systemImage: "dollarsign.circle")
                 Spacer()
                 Text(formatCurrency(totalEarningsThisWeek))
-                    .foregroundColor(Color.secondaryText)
+                    .foregroundColor(colors.secondaryText)
             }
         }
     }
@@ -70,18 +71,18 @@ struct HomeView: View {
     private func shiftRow(shift: Shift) -> some View {
         HStack {
             Image(systemName: "clock.fill")
-                .foregroundColor(Color.accent)
+                .foregroundColor(colors.accent)
             VStack(alignment: .leading, spacing: 5) {
                 Text(shift.date ?? Date(), style: .date)
-                    .foregroundColor(Color.text)
+                    .foregroundColor(colors.text)
                 Text("\(shift.startTime ?? Date(), style: .time) - \(shift.endTime ?? Date(), style: .time)")
                     .font(.subheadline)
-                    .foregroundColor(Color.secondaryText)
+                    .foregroundColor(colors.secondaryText)
             }
             Spacer()
             Text(formatCurrency(calculateEarnings(for: shift)))
                 .font(.callout)
-                .foregroundColor(Color.secondaryText)
+                .foregroundColor(colors.secondaryText)
         }
     }
     
@@ -133,10 +134,12 @@ struct HomeView_Previews: PreviewProvider {
     static var previews: some View {
         HomeView()
             .environmentObject(SettingsManager())
+            .withAppColorScheme()
             .environment(\.colorScheme, .light)
         
         HomeView()
             .environmentObject(SettingsManager())
+            .withAppColorScheme()
             .environment(\.colorScheme, .dark)
     }
 }

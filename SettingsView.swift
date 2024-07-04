@@ -3,6 +3,7 @@ import SwiftUI
 struct SettingsView: View {
     @EnvironmentObject var settingsManager: SettingsManager
     @Environment(\.presentationMode) var presentationMode
+    @Environment(\.appColor) private var colors
     
     @State private var tempPayRate: String = ""
     @State private var tempDefaultShiftDuration: Double = 8.0
@@ -51,7 +52,7 @@ struct SettingsView: View {
     }
     
     private var appearanceSection: some View {
-        Section(header: Text("Appearance").foregroundColor(Color.text)) {
+        Section(header: Text("Appearance").foregroundColor(colors.text)) {
             Picker("Color Scheme", selection: $settingsManager.colorScheme) {
                 Text("Light").tag(AppColorScheme.light)
                 Text("Dark").tag(AppColorScheme.dark)
@@ -74,7 +75,7 @@ struct SettingsView: View {
     }
     
     private var defaultShiftSettingsSection: some View {
-        Section(header: Text("Default Shift Settings").foregroundColor(Color.text)) {
+        Section(header: Text("Default Shift Settings").foregroundColor(colors.text)) {
             HStack {
                 Text("Pay Rate")
                 Spacer()
@@ -87,59 +88,59 @@ struct SettingsView: View {
                         }
                     }
             }
-            .foregroundColor(Color.text)
+            .foregroundColor(colors.text)
             Stepper(value: $tempDefaultShiftDuration, in: 0.5...24, step: 0.5) {
                 Text("Default Duration: \(tempDefaultShiftDuration, specifier: "%.1f") hours")
             }
             .onChange(of: tempDefaultShiftDuration) { newValue in
                 settingsManager.defaultShiftDuration = newValue
             }
-            .foregroundColor(Color.text)
+            .foregroundColor(colors.text)
         }
     }
     
     private var earningsSection: some View {
-        Section(header: Text("Earnings").foregroundColor(Color.text)) {
+        Section(header: Text("Earnings").foregroundColor(colors.text)) {
             Picker("Currency", selection: $settingsManager.currency) {
                 ForEach(currencies, id: \.self) {
                     Text($0)
                 }
             }
-            .foregroundColor(Color.text)
+            .foregroundColor(colors.text)
             Picker("Pay Period", selection: $settingsManager.payPeriod) {
                 ForEach(payPeriods, id: \.self) {
                     Text($0)
                 }
             }
-            .foregroundColor(Color.text)
+            .foregroundColor(colors.text)
             Toggle("Include Taxes", isOn: $settingsManager.includeTaxes)
-                .foregroundColor(Color.text)
+                .foregroundColor(colors.text)
         }
     }
     
     private var notificationsSection: some View {
-        Section(header: Text("Notifications").foregroundColor(Color.text)) {
+        Section(header: Text("Notifications").foregroundColor(colors.text)) {
             Toggle("Shift Reminders", isOn: $settingsManager.shiftReminders)
-                .foregroundColor(Color.text)
+                .foregroundColor(colors.text)
             if settingsManager.shiftReminders {
                 Stepper(value: $settingsManager.reminderTime, in: 5...120, step: 5) {
                     Text("Remind \(settingsManager.reminderTime) minutes before")
                 }
-                .foregroundColor(Color.text)
+                .foregroundColor(colors.text)
             }
         }
     }
     
     private var exportSection: some View {
-        Section(header: Text("Export Data").foregroundColor(Color.text)) {
+        Section(header: Text("Export Data").foregroundColor(colors.text)) {
             Button("Export as CSV") {
                 // Implement CSV export functionality
             }
-            .foregroundColor(Color.accent)
+            .foregroundColor(colors.accent)
             Button("Export as PDF") {
                 // Implement PDF export functionality
             }
-            .foregroundColor(Color.accent)
+            .foregroundColor(colors.accent)
         }
     }
     
@@ -148,24 +149,24 @@ struct SettingsView: View {
             Button("Reset to Defaults") {
                 showingResetAlert = true
             }
-            .foregroundColor(Color.red)
+            .foregroundColor(.red)
         }
     }
     
     private var aboutSection: some View {
-        Section(header: Text("About").foregroundColor(Color.text)) {
+        Section(header: Text("About").foregroundColor(colors.text)) {
             HStack {
                 Text("Version")
                 Spacer()
                 Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown")
             }
-            .foregroundColor(Color.text)
+            .foregroundColor(colors.text)
             Link("Privacy Policy", destination: URL(string: "https://www.example.com/privacy")!)
-                .foregroundColor(Color.accent)
+                .foregroundColor(colors.accent)
             Link("Terms of Service", destination: URL(string: "https://www.example.com/terms")!)
-                .foregroundColor(Color.accent)
+                .foregroundColor(colors.accent)
             Link("Contact Support", destination: URL(string: "https://www.example.com/support")!)
-                .foregroundColor(Color.accent)
+                .foregroundColor(colors.accent)
         }
     }
     
@@ -182,10 +183,12 @@ struct SettingsView_Previews: PreviewProvider {
     static var previews: some View {
         SettingsView()
             .environmentObject(SettingsManager())
+            .withAppColorScheme()
             .environment(\.colorScheme, .light)
         
         SettingsView()
             .environmentObject(SettingsManager())
+            .withAppColorScheme()
             .environment(\.colorScheme, .dark)
     }
 }

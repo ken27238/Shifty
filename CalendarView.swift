@@ -9,6 +9,7 @@ struct CalendarView: View {
     private var shifts: FetchedResults<Shift>
     
     @EnvironmentObject var settingsManager: SettingsManager
+    @Environment(\.appColor) private var colors
     
     @State private var selectedDate = Date()
     @State private var currentMonth = Date()
@@ -31,14 +32,14 @@ struct CalendarView: View {
                 Divider()
                 selectedDateShifts
             }
-            .background(Color.background.edgesIgnoringSafeArea(.all))
+            .background(colors.background.edgesIgnoringSafeArea(.all))
             .navigationTitle("Calendar")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: { showingAddShift = true }) {
                         Image(systemName: "plus")
-                            .foregroundColor(Color.accent)
+                            .foregroundColor(colors.accent)
                     }
                 }
             }
@@ -59,16 +60,16 @@ struct CalendarView: View {
         HStack {
             Button(action: { changeMonth(by: -1) }) {
                 Image(systemName: "chevron.left")
-                    .foregroundColor(Color.accent)
+                    .foregroundColor(colors.accent)
             }
             Spacer()
             Text(dateFormatter.string(from: currentMonth))
                 .font(.headline)
-                .foregroundColor(Color.text)
+                .foregroundColor(colors.text)
             Spacer()
             Button(action: { changeMonth(by: 1) }) {
                 Image(systemName: "chevron.right")
-                    .foregroundColor(Color.accent)
+                    .foregroundColor(colors.accent)
             }
         }
         .padding(.horizontal)
@@ -80,7 +81,7 @@ struct CalendarView: View {
             ForEach(calendar.shortWeekdaySymbols, id: \.self) { day in
                 Text(day)
                     .font(.caption)
-                    .foregroundColor(Color.secondaryText)
+                    .foregroundColor(colors.secondaryText)
                     .frame(maxWidth: .infinity)
             }
         }
@@ -96,7 +97,8 @@ struct CalendarView: View {
                     DayCell(date: date,
                             isSelected: calendar.isDate(date, inSameDayAs: selectedDate),
                             isToday: calendar.isDateInToday(date),
-                            shifts: shiftsForDate(date))
+                            shifts: shiftsForDate(date),
+                            colors: colors)
                     .onTapGesture {
                         selectedDate = date
                     }
@@ -110,10 +112,10 @@ struct CalendarView: View {
     
     private var selectedDateShifts: some View {
         List {
-            Section(header: Text(selectedDate, style: .date).textCase(.none).foregroundColor(Color.text)) {
+            Section(header: Text(selectedDate, style: .date).textCase(.none).foregroundColor(colors.text)) {
                 if let shifts = shiftsForDate(selectedDate), !shifts.isEmpty {
                     ForEach(shifts) { shift in
-                        ShiftRow(shift: shift)
+                        ShiftRow(shift: shift, colors: colors)
                             .contentShape(Rectangle())
                             .onTapGesture {
                                 showingShiftDetail = shift
@@ -121,7 +123,7 @@ struct CalendarView: View {
                     }
                 } else {
                     Text("No shifts scheduled")
-                        .foregroundColor(Color.secondaryText)
+                        .foregroundColor(colors.secondaryText)
                 }
             }
         }
@@ -146,6 +148,7 @@ struct DayCell: View {
     let isSelected: Bool
     let isToday: Bool
     let shifts: [Shift]?
+    let colors: AppColor
     
     private let calendar = Calendar.current
     
@@ -155,7 +158,7 @@ struct DayCell: View {
                 .fill(backgroundColor)
                 .overlay(
                     Circle()
-                        .stroke(isToday ? Color.accent : Color.clear, lineWidth: 1)
+                        .stroke(isToday ? colors.accent : Color.clear, lineWidth: 1)
                 )
             VStack(spacing: 2) {
                 Text("\(calendar.component(.day, from: date))")
@@ -176,26 +179,27 @@ struct DayCell: View {
     }
     
     private var backgroundColor: Color {
-        isSelected ? Color.accent.opacity(0.2) : Color.clear
+        isSelected ? colors.accent.opacity(0.2) : Color.clear
     }
     
     private var textColor: Color {
         if isSelected {
-            return Color.accent
+            return colors.accent
         } else if isToday {
-            return Color.accent
+            return colors.accent
         } else {
-            return Color.text
+            return colors.text
         }
     }
     
     private var dotColor: Color {
-        isSelected ? Color.accent : Color.secondaryText
+        isSelected ? colors.accent : colors.secondaryText
     }
 }
 
 struct ShiftRow: View {
     let shift: Shift
+    let colors: AppColor
     @EnvironmentObject var settingsManager: SettingsManager
     
     var body: some View {
@@ -203,11 +207,11 @@ struct ShiftRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("\(shift.startTime ?? Date(), style: .time) - \(shift.endTime ?? Date(), style: .time)")
                     .font(.headline)
-                    .foregroundColor(Color.text)
+                    .foregroundColor(colors.text)
                 if let notes = shift.notes, !notes.isEmpty {
                     Text(notes)
                         .font(.subheadline)
-                        .foregroundColor(Color.secondaryText)
+                        .foregroundColor(colors.secondaryText)
                 }
             }
             Spacer()
@@ -215,10 +219,10 @@ struct ShiftRow: View {
                 Text(formatCurrency(calculateEarnings()))
                     .font(.callout)
                     .fontWeight(.semibold)
-                    .foregroundColor(Color.text)
+                    .foregroundColor(colors.text)
                 Text(formatDuration())
                     .font(.caption)
-                    .foregroundColor(Color.secondaryText)
+                    .foregroundColor(colors.secondaryText)
             }
         }
     }
@@ -245,6 +249,21 @@ struct ShiftRow: View {
     }
 }
 
+struct CalendarView_Previews: PreviewProvider {
+    static var previews: some View {
+        CalendarView()
+            .environmentObject(SettingsManager())
+            .withAppColorScheme()
+            .previewDisplayName("Light Mode")
+        
+        CalendarView()
+            .environmentObject(SettingsManager())
+            .withAppColorScheme()
+            .preferredColorScheme(.dark)
+            .previewDisplayName("Dark Mode")
+    }
+}
+
 extension Calendar {
     func daysInMonth(for date: Date) -> [Date?] {
         guard let range = self.range(of: .day, in: .month, for: date),
@@ -257,17 +276,5 @@ extension Calendar {
         return (1..<firstWeekday).map { _ in nil } + range.map { day -> Date? in
             self.date(byAdding: .day, value: day - 1, to: firstDayOfMonth)
         }
-    }
-}
-
-struct CalendarView_Previews: PreviewProvider {
-    static var previews: some View {
-        CalendarView()
-            .environmentObject(SettingsManager())
-            .environment(\.colorScheme, .light)
-        
-        CalendarView()
-            .environmentObject(SettingsManager())
-            .environment(\.colorScheme, .dark)
     }
 }

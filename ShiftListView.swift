@@ -7,6 +7,7 @@ struct ShiftListView: View {
         animation: .default)
     private var shifts: FetchedResults<Shift>
     @EnvironmentObject var settingsManager: SettingsManager
+    @Environment(\.appColor) private var colors
 
     @State private var showingAddShift = false
     @State private var showingShiftDetail: Shift?
@@ -17,9 +18,9 @@ struct ShiftListView: View {
                 summarySection
                 
                 ForEach(groupedShifts.keys.sorted(), id: \.self) { date in
-                    Section(header: Text(formatDate(date)).foregroundColor(Color.text)) {
+                    Section(header: Text(formatDate(date)).foregroundColor(colors.text)) {
                         ForEach(groupedShifts[date] ?? []) { shift in
-                            ShiftRowView(shift: shift)
+                            ShiftRowView(shift: shift, colors: colors)
                                 .contentShape(Rectangle())
                                 .onTapGesture {
                                     showingShiftDetail = shift
@@ -35,7 +36,7 @@ struct ShiftListView: View {
                                     } label: {
                                         Label("Edit", systemImage: "pencil")
                                     }
-                                    .tint(Color.accent)
+                                    .tint(colors.accent)
                                 }
                         }
                     }
@@ -61,34 +62,35 @@ struct ShiftListView: View {
                 }
             }
         }
-        .background(Color.background.edgesIgnoringSafeArea(.all))
+        .background(colors.background.edgesIgnoringSafeArea(.all))
     }
 
     private var summarySection: some View {
-        Section(header: Text("Summary").foregroundColor(Color.text)) {
+        Section(header: Text("Summary").foregroundColor(colors.text)) {
             HStack {
                 Label("Total Shifts", systemImage: "number.circle")
                 Spacer()
                 Text("\(shifts.count)")
                     .fontWeight(.semibold)
             }
-            .foregroundColor(Color.text)
+            .foregroundColor(colors.text)
             HStack {
                 Label("Total Hours", systemImage: "clock")
                 Spacer()
                 Text(String(format: "%.1f", totalHours))
                     .fontWeight(.semibold)
             }
-            .foregroundColor(Color.text)
+            .foregroundColor(colors.text)
             HStack {
                 Label("Total Earnings", systemImage: "dollarsign.circle")
                 Spacer()
                 Text(formatCurrency(totalEarnings))
                     .fontWeight(.semibold)
             }
-            .foregroundColor(Color.text)
+            .foregroundColor(colors.text)
         }
     }
+
 
     private var groupedShifts: [Date: [Shift]] {
         Dictionary(grouping: shifts) { shift in
@@ -132,6 +134,7 @@ struct ShiftListView: View {
 
 struct ShiftRowView: View {
     let shift: Shift
+    let colors: AppColor
     @EnvironmentObject var settingsManager: SettingsManager
 
     var body: some View {
@@ -139,10 +142,10 @@ struct ShiftRowView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(shift.date ?? Date(), style: .date)
                     .font(.headline)
-                    .foregroundColor(Color.text)
+                    .foregroundColor(colors.text)
                 Text("\(shift.startTime ?? Date(), style: .time) - \(shift.endTime ?? Date(), style: .time)")
                     .font(.subheadline)
-                    .foregroundColor(Color.secondaryText)
+                    .foregroundColor(colors.secondaryText)
             }
             
             Spacer()
@@ -151,11 +154,11 @@ struct ShiftRowView: View {
                 Text(formatCurrency(calculateEarnings()))
                     .font(.callout)
                     .fontWeight(.semibold)
-                    .foregroundColor(Color.text)
+                    .foregroundColor(colors.text)
                 
                 Text(formatDuration())
                     .font(.caption)
-                    .foregroundColor(Color.secondaryText)
+                    .foregroundColor(colors.secondaryText)
             }
         }
         .padding(.vertical, 4)
