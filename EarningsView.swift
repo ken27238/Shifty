@@ -15,7 +15,7 @@ struct EarningsView: View {
     var body: some View {
         NavigationView {
             List {
-                Section(header: Text("Timeframe")) {
+                Section(header: Text("Timeframe").foregroundColor(Color.text)) {
                     Picker("Timeframe", selection: $selectedTimeframe) {
                         ForEach(0..<timeframes.count) { index in
                             Text(timeframes[index]).tag(index)
@@ -24,28 +24,31 @@ struct EarningsView: View {
                     .pickerStyle(SegmentedPickerStyle())
                 }
                 
-                Section(header: Text("Summary")) {
+                Section(header: Text("Summary").foregroundColor(Color.text)) {
                     HStack {
                         Text("Total Earnings")
                         Spacer()
                         Text(formatCurrency(calculateTotalEarnings()))
                             .fontWeight(.bold)
                     }
+                    .foregroundColor(Color.text)
                     
                     HStack {
                         Text("Total Hours")
                         Spacer()
                         Text(String(format: "%.1f", calculateTotalHours()))
                     }
+                    .foregroundColor(Color.text)
                     
                     HStack {
                         Text("Average Hourly Rate")
                         Spacer()
                         Text(formatCurrency(calculateAverageHourlyRate()))
                     }
+                    .foregroundColor(Color.text)
                 }
                 
-                Section(header: Text("Breakdown")) {
+                Section(header: Text("Breakdown").foregroundColor(Color.text)) {
                     ForEach(groupedShifts, id: \.0) { date, shiftsForDate in
                         NavigationLink(destination: DailyEarningsView(date: date, shifts: shiftsForDate)) {
                             HStack {
@@ -53,12 +56,14 @@ struct EarningsView: View {
                                 Spacer()
                                 Text(formatCurrency(calculateEarnings(for: shiftsForDate)))
                             }
+                            .foregroundColor(Color.text)
                         }
                     }
                 }
             }
             .listStyle(InsetGroupedListStyle())
             .navigationTitle("Earnings")
+            .background(Color.background.edgesIgnoringSafeArea(.all))
         }
     }
     
@@ -141,18 +146,21 @@ struct DailyEarningsView: View {
                 HStack {
                     VStack(alignment: .leading) {
                         Text("\(shift.startTime ?? Date(), style: .time) - \(shift.endTime ?? Date(), style: .time)")
+                            .foregroundColor(Color.text)
                         if let notes = shift.notes, !notes.isEmpty {
                             Text(notes)
                                 .font(.caption)
-                                .foregroundColor(.secondary)
+                                .foregroundColor(Color.secondaryText)
                         }
                     }
                     Spacer()
                     Text(formatCurrency(calculateEarnings(for: shift)))
+                        .foregroundColor(Color.text)
                 }
             }
         }
         .navigationTitle(formatDate(date))
+        .background(Color.background.edgesIgnoringSafeArea(.all))
     }
     
     private func calculateEarnings(for shift: Shift) -> Double {
@@ -180,5 +188,10 @@ struct EarningsView_Previews: PreviewProvider {
     static var previews: some View {
         EarningsView()
             .environmentObject(SettingsManager())
+            .environment(\.colorScheme, .light)
+        
+        EarningsView()
+            .environmentObject(SettingsManager())
+            .environment(\.colorScheme, .dark)
     }
 }

@@ -5,9 +5,15 @@ class SettingsManager: ObservableObject {
     private let defaults = UserDefaults.standard
     
     // MARK: - Appearance
-    @Published var isDarkMode: Bool {
+    @Published var colorScheme: AppColorScheme {
         didSet {
-            defaults.set(isDarkMode, forKey: "isDarkMode")
+            defaults.set(colorScheme.rawValue, forKey: "colorScheme")
+        }
+    }
+    
+    @Published var accentColor: Int {
+        didSet {
+            defaults.set(accentColor, forKey: "accentColor")
         }
     }
     
@@ -58,7 +64,8 @@ class SettingsManager: ObservableObject {
     
     // MARK: - Initialization
     init() {
-        self.isDarkMode = defaults.bool(forKey: "isDarkMode")
+        self.colorScheme = AppColorScheme(rawValue: defaults.integer(forKey: "colorScheme")) ?? .unspecified
+        self.accentColor = defaults.integer(forKey: "accentColor")
         self.payRate = defaults.double(forKey: "payRate")
         self.defaultShiftDuration = defaults.double(forKey: "defaultShiftDuration")
         self.currency = defaults.string(forKey: "currency") ?? "USD"
@@ -81,7 +88,8 @@ class SettingsManager: ObservableObject {
     
     // MARK: - Reset to Defaults
     func reset() {
-        isDarkMode = false
+        colorScheme = .unspecified
+        accentColor = 0
         payRate = 15.0
         defaultShiftDuration = 8.0
         currency = "USD"

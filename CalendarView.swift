@@ -31,12 +31,14 @@ struct CalendarView: View {
                 Divider()
                 selectedDateShifts
             }
+            .background(Color.background.edgesIgnoringSafeArea(.all))
             .navigationTitle("Calendar")
-            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: { showingAddShift = true }) {
                         Image(systemName: "plus")
+                            .foregroundColor(Color.accent)
                     }
                 }
             }
@@ -57,13 +59,16 @@ struct CalendarView: View {
         HStack {
             Button(action: { changeMonth(by: -1) }) {
                 Image(systemName: "chevron.left")
+                    .foregroundColor(Color.accent)
             }
             Spacer()
             Text(dateFormatter.string(from: currentMonth))
                 .font(.headline)
+                .foregroundColor(Color.text)
             Spacer()
             Button(action: { changeMonth(by: 1) }) {
                 Image(systemName: "chevron.right")
+                    .foregroundColor(Color.accent)
             }
         }
         .padding(.horizontal)
@@ -75,7 +80,7 @@ struct CalendarView: View {
             ForEach(calendar.shortWeekdaySymbols, id: \.self) { day in
                 Text(day)
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(Color.secondaryText)
                     .frame(maxWidth: .infinity)
             }
         }
@@ -105,7 +110,7 @@ struct CalendarView: View {
     
     private var selectedDateShifts: some View {
         List {
-            Section(header: Text(selectedDate, style: .date).textCase(.none)) {
+            Section(header: Text(selectedDate, style: .date).textCase(.none).foregroundColor(Color.text)) {
                 if let shifts = shiftsForDate(selectedDate), !shifts.isEmpty {
                     ForEach(shifts) { shift in
                         ShiftRow(shift: shift)
@@ -116,7 +121,7 @@ struct CalendarView: View {
                     }
                 } else {
                     Text("No shifts scheduled")
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.secondaryText)
                 }
             }
         }
@@ -142,23 +147,25 @@ struct DayCell: View {
     let isToday: Bool
     let shifts: [Shift]?
     
-    @EnvironmentObject var settingsManager: SettingsManager
-    
     private let calendar = Calendar.current
     
     var body: some View {
         ZStack {
             Circle()
-                .fill(isSelected ? Color.accentColor : Color.clear)
+                .fill(backgroundColor)
+                .overlay(
+                    Circle()
+                        .stroke(isToday ? Color.accent : Color.clear, lineWidth: 1)
+                )
             VStack(spacing: 2) {
                 Text("\(calendar.component(.day, from: date))")
                     .font(isToday ? .headline : .body)
-                    .foregroundColor(isSelected ? .white : (isToday ? .accentColor : .primary))
+                    .foregroundColor(textColor)
                 if let shifts = shifts, !shifts.isEmpty {
                     HStack(spacing: 2) {
                         ForEach(0..<min(shifts.count, 3), id: \.self) { _ in
                             Circle()
-                                .fill(isSelected ? .white : Color.accentColor)
+                                .fill(dotColor)
                                 .frame(width: 4, height: 4)
                         }
                     }
@@ -166,6 +173,24 @@ struct DayCell: View {
             }
         }
         .aspectRatio(1, contentMode: .fit)
+    }
+    
+    private var backgroundColor: Color {
+        isSelected ? Color.accent.opacity(0.2) : Color.clear
+    }
+    
+    private var textColor: Color {
+        if isSelected {
+            return Color.accent
+        } else if isToday {
+            return Color.accent
+        } else {
+            return Color.text
+        }
+    }
+    
+    private var dotColor: Color {
+        isSelected ? Color.accent : Color.secondaryText
     }
 }
 
@@ -178,10 +203,11 @@ struct ShiftRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("\(shift.startTime ?? Date(), style: .time) - \(shift.endTime ?? Date(), style: .time)")
                     .font(.headline)
+                    .foregroundColor(Color.text)
                 if let notes = shift.notes, !notes.isEmpty {
                     Text(notes)
                         .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.secondaryText)
                 }
             }
             Spacer()
@@ -189,9 +215,10 @@ struct ShiftRow: View {
                 Text(formatCurrency(calculateEarnings()))
                     .font(.callout)
                     .fontWeight(.semibold)
+                    .foregroundColor(Color.text)
                 Text(formatDuration())
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(Color.secondaryText)
             }
         }
     }
@@ -237,5 +264,10 @@ struct CalendarView_Previews: PreviewProvider {
     static var previews: some View {
         CalendarView()
             .environmentObject(SettingsManager())
+            .environment(\.colorScheme, .light)
+        
+        CalendarView()
+            .environmentObject(SettingsManager())
+            .environment(\.colorScheme, .dark)
     }
 }

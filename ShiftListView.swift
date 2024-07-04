@@ -17,7 +17,7 @@ struct ShiftListView: View {
                 summarySection
                 
                 ForEach(groupedShifts.keys.sorted(), id: \.self) { date in
-                    Section(header: Text(formatDate(date))) {
+                    Section(header: Text(formatDate(date)).foregroundColor(Color.text)) {
                         ForEach(groupedShifts[date] ?? []) { shift in
                             ShiftRowView(shift: shift)
                                 .contentShape(Rectangle())
@@ -35,7 +35,7 @@ struct ShiftListView: View {
                                     } label: {
                                         Label("Edit", systemImage: "pencil")
                                     }
-                                    .tint(.blue)
+                                    .tint(Color.accent)
                                 }
                         }
                     }
@@ -61,28 +61,32 @@ struct ShiftListView: View {
                 }
             }
         }
+        .background(Color.background.edgesIgnoringSafeArea(.all))
     }
 
     private var summarySection: some View {
-        Section(header: Text("Summary")) {
+        Section(header: Text("Summary").foregroundColor(Color.text)) {
             HStack {
                 Label("Total Shifts", systemImage: "number.circle")
                 Spacer()
                 Text("\(shifts.count)")
                     .fontWeight(.semibold)
             }
+            .foregroundColor(Color.text)
             HStack {
                 Label("Total Hours", systemImage: "clock")
                 Spacer()
                 Text(String(format: "%.1f", totalHours))
                     .fontWeight(.semibold)
             }
+            .foregroundColor(Color.text)
             HStack {
                 Label("Total Earnings", systemImage: "dollarsign.circle")
                 Spacer()
                 Text(formatCurrency(totalEarnings))
                     .fontWeight(.semibold)
             }
+            .foregroundColor(Color.text)
         }
     }
 
@@ -135,9 +139,10 @@ struct ShiftRowView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(shift.date ?? Date(), style: .date)
                     .font(.headline)
+                    .foregroundColor(Color.text)
                 Text("\(shift.startTime ?? Date(), style: .time) - \(shift.endTime ?? Date(), style: .time)")
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(Color.secondaryText)
             }
             
             Spacer()
@@ -146,10 +151,11 @@ struct ShiftRowView: View {
                 Text(formatCurrency(calculateEarnings()))
                     .font(.callout)
                     .fontWeight(.semibold)
+                    .foregroundColor(Color.text)
                 
                 Text(formatDuration())
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(Color.secondaryText)
             }
         }
         .padding(.vertical, 4)
@@ -181,5 +187,10 @@ struct ShiftListView_Previews: PreviewProvider {
     static var previews: some View {
         ShiftListView()
             .environmentObject(SettingsManager())
+            .environment(\.colorScheme, .light)
+        
+        ShiftListView()
+            .environmentObject(SettingsManager())
+            .environment(\.colorScheme, .dark)
     }
 }
