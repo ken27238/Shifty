@@ -17,15 +17,13 @@ class SettingsManager: ObservableObject {
         }
     }
     
-    @Published var accentColorIndex: Int {
+    @Published var accentColor: Color {
         didSet {
-            defaults.set(accentColorIndex, forKey: "accentColorIndex")
+            if let colorData = try? NSKeyedArchiver.archivedData(withRootObject: UIColor(accentColor), requiringSecureCoding: false) {
+                defaults.set(colorData, forKey: "accentColor")
+            }
         }
     }
-    
-    @Published var accentColor: Color
-    
-    let accentColors: [Color] = [.blue, .red, .green, .orange, .purple, .pink]
     
     // MARK: - Default Shift Settings
     @Published var payRate: Double {
@@ -77,9 +75,12 @@ class SettingsManager: ObservableObject {
         let colorSchemeString = defaults.string(forKey: "colorScheme") ?? ""
         self.colorScheme = AppColorScheme(rawValue: colorSchemeString) ?? .unspecified
         
-        let tempAccentColorIndex = defaults.integer(forKey: "accentColorIndex")
-        self.accentColorIndex = tempAccentColorIndex
-        self.accentColor = accentColors[safe: tempAccentColorIndex] ?? .blue
+        if let colorData = defaults.data(forKey: "accentColor"),
+           let color = try? NSKeyedUnarchiver.unarchivedObject(ofClass: UIColor.self, from: colorData) {
+            self.accentColor = Color(color)
+        } else {
+            self.accentColor = .blue // Default accent color
+        }
         
         self.payRate = defaults.double(forKey: "payRate")
         self.defaultShiftDuration = defaults.double(forKey: "defaultShiftDuration")
@@ -104,8 +105,7 @@ class SettingsManager: ObservableObject {
     // MARK: - Reset to Defaults
     func reset() {
         colorScheme = .unspecified
-        accentColorIndex = 0
-        accentColor = accentColors[0]
+        accentColor = .blue
         payRate = 15.0
         defaultShiftDuration = 8.0
         currency = "USD"
@@ -131,12 +131,5 @@ class SettingsManager: ObservableObject {
             earnings *= 0.8
         }
         return earnings
-    }
-}
-
-// Extension to safely access array elements
-extension Array {
-    subscript(safe index: Index) -> Element? {
-        return indices.contains(index) ? self[index] : nil
     }
 }

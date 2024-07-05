@@ -2,16 +2,19 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject var settingsManager: SettingsManager
-    @Environment(\.presentationMode) var presentationMode
     @Environment(\.appColor) private var colors
+    @Environment(\.dismiss) var dismiss
     
     @State private var tempPayRate: String = ""
     @State private var tempDefaultShiftDuration: Double = 8.0
     @State private var showingResetAlert = false
+    @State private var showingPayRateAlert = false
+    @State private var showingCurrencyAlert = false
+    @State private var isDarkMode: Bool = false
+    @State private var tempAccentColor: Color = .blue
     
     let currencies = ["USD", "EUR", "GBP", "CAD", "AUD", "JPY", "CNY"]
     let payPeriods = ["Weekly", "Bi-Weekly", "Monthly"]
-    let accentColors: [Color] = [.blue, .red, .green, .orange, .purple, .pink]
 
     var body: some View {
         NavigationView {
@@ -25,122 +28,116 @@ struct SettingsView: View {
                 aboutSection
             }
             .navigationTitle("Settings")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save") {
-                        saveSettings()
-                    }
-                }
+            .background(colors.background)
+            .onAppear(perform: loadInitialValues)
+            .alert("Reset Settings", isPresented: $showingResetAlert) {
+                Button("Reset", role: .destructive, action: resetSettings)
+                Button("Cancel", role: .cancel) { }
+            } message: {
+                Text("Are you sure you want to reset all settings to default values?")
             }
-            .onAppear {
-                tempPayRate = String(format: "%.2f", settingsManager.payRate)
-                tempDefaultShiftDuration = settingsManager.defaultShiftDuration
+            .alert("Change Pay Rate", isPresented: $showingPayRateAlert) {
+                Button("Confirm", action: savePayRate)
+                Button("Cancel", role: .cancel) { }
+            } message: {
+                Text("Are you sure you want to change the pay rate to \(tempPayRate)?")
             }
-            .alert(isPresented: $showingResetAlert) {
-                Alert(
-                    title: Text("Reset Settings"),
-                    message: Text("Are you sure you want to reset all settings to default values?"),
-                    primaryButton: .destructive(Text("Reset")) {
-                        settingsManager.reset()
-                        tempPayRate = String(format: "%.2f", settingsManager.payRate)
-                        tempDefaultShiftDuration = settingsManager.defaultShiftDuration
-                    },
-                    secondaryButton: .cancel()
-                )
+            .alert("Change Currency", isPresented: $showingCurrencyAlert) {
+                Button("Confirm", action: saveCurrency)
+                Button("Cancel", role: .cancel) { }
+            } message: {
+                Text("Changing the currency will not convert existing earnings. Are you sure?")
             }
         }
     }
     
     private var appearanceSection: some View {
-        Section(header: Text("Appearance").foregroundColor(colors.text)) {
-            Picker("Color Scheme", selection: $settingsManager.colorScheme) {
-                Text("Light").tag(AppColorScheme.light)
-                Text("Dark").tag(AppColorScheme.dark)
-                Text("System").tag(AppColorScheme.unspecified)
-            }
-            .pickerStyle(SegmentedPickerStyle())
-            
-            Picker("Accent Color", selection: $settingsManager.accentColor) {
-                ForEach(accentColors.indices, id: \.self) { index in
-                    HStack {
-                        Circle()
-                            .fill(accentColors[index])
-                            .frame(width: 20, height: 20)
-                        Text("Color \(index + 1)")
-                    }
-                    .tag(index)
+        Section {
+            Toggle("Dark Mode", isOn: $isDarkMode)
+                .onChange(of: isDarkMode) { newValue in
+                    settingsManager.colorScheme = newValue ? .dark : .light
                 }
-            }
+            
+            ColorPicker("Accent Color", selection: $tempAccentColor, supportsOpacity: false)
+                .onChange(of: tempAccentColor) { newValue in
+                    settingsManager.accentColor = newValue
+                }
+        } header: {
+            Label("Appearance", systemImage: "paintpalette")
         }
     }
     
     private var defaultShiftSettingsSection: some View {
-        Section(header: Text("Default Shift Settings").foregroundColor(colors.text)) {
+        Section {
             HStack {
                 Text("Pay Rate")
                 Spacer()
                 TextField("Pay Rate", text: $tempPayRate)
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
-                    .onChange(of: tempPayRate) { newValue in
-                        if let payRate = Double(newValue) {
-                            settingsManager.payRate = payRate
-                        }
-                    }
+                    .onChange(of: tempPayRate) { _ in validatePayRate() }
+                    .accessibilityLabel("Pay Rate")
+                    .accessibilityHint("Enter your hourly pay rate")
             }
-            .foregroundColor(colors.text)
+            
             Stepper(value: $tempDefaultShiftDuration, in: 0.5...24, step: 0.5) {
                 Text("Default Duration: \(tempDefaultShiftDuration, specifier: "%.1f") hours")
             }
-            .onChange(of: tempDefaultShiftDuration) { newValue in
-                settingsManager.defaultShiftDuration = newValue
-            }
-            .foregroundColor(colors.text)
+            .accessibilityLabel("Default Shift Duration")
+            .accessibilityValue("\(tempDefaultShiftDuration) hours")
+            .accessibilityHint("Adjust the default shift duration")
+        } header: {
+            Label("Default Shift Settings", systemImage: "clock")
         }
     }
     
     private var earningsSection: some View {
-        Section(header: Text("Earnings").foregroundColor(colors.text)) {
+        Section {
             Picker("Currency", selection: $settingsManager.currency) {
-                ForEach(currencies, id: \.self) {
-                    Text($0)
-                }
+                ForEach(currencies, id: \.self) { Text($0) }
             }
-            .foregroundColor(colors.text)
+            .onChange(of: settingsManager.currency) { _ in showingCurrencyAlert = true }
+            
             Picker("Pay Period", selection: $settingsManager.payPeriod) {
-                ForEach(payPeriods, id: \.self) {
-                    Text($0)
-                }
+                ForEach(payPeriods, id: \.self) { Text($0) }
             }
-            .foregroundColor(colors.text)
+            
             Toggle("Include Taxes", isOn: $settingsManager.includeTaxes)
-                .foregroundColor(colors.text)
+                .accessibilityHint("Toggle to include or exclude taxes in earnings calculations")
+        } header: {
+            Label("Earnings", systemImage: "dollarsign.circle")
         }
     }
     
     private var notificationsSection: some View {
-        Section(header: Text("Notifications").foregroundColor(colors.text)) {
+        Section {
             Toggle("Shift Reminders", isOn: $settingsManager.shiftReminders)
-                .foregroundColor(colors.text)
+                .accessibilityHint("Toggle to enable or disable shift reminders")
+            
             if settingsManager.shiftReminders {
                 Stepper(value: $settingsManager.reminderTime, in: 5...120, step: 5) {
                     Text("Remind \(settingsManager.reminderTime) minutes before")
                 }
-                .foregroundColor(colors.text)
+                .accessibilityLabel("Reminder Time")
+                .accessibilityValue("\(settingsManager.reminderTime) minutes before shift")
+                .accessibilityHint("Adjust how many minutes before a shift to receive a reminder")
             }
+        } header: {
+            Label("Notifications", systemImage: "bell")
         }
     }
     
     private var exportSection: some View {
-        Section(header: Text("Export Data").foregroundColor(colors.text)) {
-            Button("Export as CSV") {
-                // Implement CSV export functionality
+        Section {
+            Button(action: exportCSV) {
+                Label("Export as CSV", systemImage: "square.and.arrow.up")
             }
-            .foregroundColor(colors.accent)
-            Button("Export as PDF") {
-                // Implement PDF export functionality
+            
+            Button(action: exportPDF) {
+                Label("Export as PDF", systemImage: "doc.text")
             }
-            .foregroundColor(colors.accent)
+        } header: {
+            Label("Export Data", systemImage: "arrow.up.doc")
         }
     }
     
@@ -150,32 +147,62 @@ struct SettingsView: View {
                 showingResetAlert = true
             }
             .foregroundColor(.red)
+            .accessibilityHint("Reset all settings to their default values")
         }
     }
     
     private var aboutSection: some View {
-        Section(header: Text("About").foregroundColor(colors.text)) {
+        Section {
             HStack {
                 Text("Version")
                 Spacer()
                 Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown")
             }
-            .foregroundColor(colors.text)
+            
             Link("Privacy Policy", destination: URL(string: "https://www.example.com/privacy")!)
-                .foregroundColor(colors.accent)
             Link("Terms of Service", destination: URL(string: "https://www.example.com/terms")!)
-                .foregroundColor(colors.accent)
             Link("Contact Support", destination: URL(string: "https://www.example.com/support")!)
-                .foregroundColor(colors.accent)
+        } header: {
+            Label("About", systemImage: "info.circle")
         }
     }
     
-    private func saveSettings() {
+    private func loadInitialValues() {
+        tempPayRate = String(format: "%.2f", settingsManager.payRate)
+        tempDefaultShiftDuration = settingsManager.defaultShiftDuration
+        isDarkMode = settingsManager.colorScheme == .dark
+        tempAccentColor = settingsManager.accentColor
+    }
+    
+    private func validatePayRate() {
+        guard let payRate = Double(tempPayRate), payRate > 0 else {
+            // Show error for invalid pay rate
+            return
+        }
+        showingPayRateAlert = true
+    }
+    
+    private func savePayRate() {
         if let payRate = Double(tempPayRate) {
             settingsManager.payRate = payRate
         }
-        settingsManager.defaultShiftDuration = tempDefaultShiftDuration
-        presentationMode.wrappedValue.dismiss()
+    }
+    
+    private func saveCurrency() {
+        // Currency is already saved in settingsManager, just close the alert
+    }
+    
+    private func resetSettings() {
+        settingsManager.reset()
+        loadInitialValues()
+    }
+    
+    private func exportCSV() {
+        // Implement CSV export functionality
+    }
+    
+    private func exportPDF() {
+        // Implement PDF export functionality
     }
 }
 

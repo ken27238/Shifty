@@ -10,7 +10,7 @@ struct AppColor {
     static let light = AppColor(
         background: .white,
         text: .black,
-        accent: .purple,
+        accent: .mint,
         secondaryBackground: Color(UIColor.systemGray6),
         secondaryText: .gray
     )
@@ -18,7 +18,7 @@ struct AppColor {
     static let dark = AppColor(
         background: .black,
         text: .white,
-        accent: .purple,
+        accent: .mint,
         secondaryBackground: Color(UIColor.systemGray5),
         secondaryText: .gray
     )

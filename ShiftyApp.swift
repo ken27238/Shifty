@@ -4,9 +4,6 @@ import SwiftUI
 struct ShiftyApp: App {
     let persistenceController = PersistenceController.shared
     @StateObject private var settingsManager = SettingsManager()
-    
-    // Define accent colors
-    let accentColors: [Color] = [.blue, .red, .green, .orange, .purple, .pink]
 
     var body: some Scene {
         WindowGroup {
@@ -14,9 +11,12 @@ struct ShiftyApp: App {
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
                 .environmentObject(settingsManager)
                 .withAppColorScheme()  // Apply our custom color scheme
-                .accentColor(accentColors[settingsManager.accentColorIndex])
+                .accentColor(settingsManager.accentColor)
                 .onChange(of: settingsManager.colorScheme) { _ in
                     updateColorScheme()
+                }
+                .onChange(of: settingsManager.accentColor) { _ in
+                    // This will ensure the app updates when the accent color changes
                 }
         }
     }
@@ -51,4 +51,3 @@ extension AppColor {
         }
     }
 }
-

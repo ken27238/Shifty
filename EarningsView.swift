@@ -1,5 +1,6 @@
 import SwiftUI
 import CoreData
+import Charts
 
 struct EarningsView: View {
     @Environment(\.managedObjectContext) private var viewContext
@@ -13,58 +14,119 @@ struct EarningsView: View {
     @State private var selectedTimeframe = 1 // Default to "This Month"
     let timeframes = ["This Week", "This Month", "This Year", "All Time"]
     
+    @State private var groupedShifts: [(Date, [Shift])] = []
+    @State private var isLoading = true
+
     var body: some View {
         NavigationView {
-            List {
-                Section(header: Text("Timeframe").foregroundColor(colors.text)) {
-                    Picker("Timeframe", selection: $selectedTimeframe) {
-                        ForEach(0..<timeframes.count) { index in
-                            Text(timeframes[index]).tag(index)
-                        }
-                    }
-                    .pickerStyle(SegmentedPickerStyle())
+            ScrollView {
+                VStack(spacing: 20) {
+                    timeframeSelector
+                    summaryCards
+                    earningsChart
+                    shiftBreakdown
                 }
-                
-                Section(header: Text("Summary").foregroundColor(colors.text)) {
-                    HStack {
-                        Text("Total Earnings")
-                        Spacer()
-                        Text(formatCurrency(calculateTotalEarnings()))
-                            .fontWeight(.bold)
-                    }
-                    .foregroundColor(colors.text)
-                    
-                    HStack {
-                        Text("Total Hours")
-                        Spacer()
-                        Text(String(format: "%.1f", calculateTotalHours()))
-                    }
-                    .foregroundColor(colors.text)
-                    
-                    HStack {
-                        Text("Average Hourly Rate")
-                        Spacer()
-                        Text(formatCurrency(calculateAverageHourlyRate()))
-                    }
-                    .foregroundColor(colors.text)
-                }
-                
-                Section(header: Text("Breakdown").foregroundColor(colors.text)) {
-                    ForEach(groupedShifts, id: \.0) { date, shiftsForDate in
-                        NavigationLink(destination: DailyEarningsView(date: date, shifts: shiftsForDate)) {
-                            HStack {
-                                Text(formatDate(date))
-                                Spacer()
-                                Text(formatCurrency(calculateEarnings(for: shiftsForDate)))
-                            }
-                            .foregroundColor(colors.text)
-                        }
-                    }
-                }
+                .padding()
             }
-            .listStyle(InsetGroupedListStyle())
-            .navigationTitle("Earnings")
             .background(colors.background.edgesIgnoringSafeArea(.all))
+            .navigationTitle("Earnings")
+            .overlay(loadingOverlay)
+            .onAppear(perform: loadData)
+        }
+        .accentColor(settingsManager.accentColor)
+    }
+    
+    private var timeframeSelector: some View {
+        Picker("Timeframe", selection: $selectedTimeframe) {
+            ForEach(Array(timeframes.enumerated()), id: \.offset) { index, timeframe in
+                Text(timeframe).tag(index)
+            }
+        }
+        .pickerStyle(SegmentedPickerStyle())
+        .onChange(of: selectedTimeframe) { _ in
+            updateGroupedShifts()
+        }
+    }
+    
+    private var summaryCards: some View {
+        HStack {
+            SummaryCard(title: "Total Earnings", value: formatCurrency(calculateTotalEarnings()), icon: "dollarsign.circle")
+            SummaryCard(title: "Total Hours", value: String(format: "%.1f", calculateTotalHours()), icon: "clock")
+            SummaryCard(title: "Avg. Hourly Rate", value: formatCurrency(calculateAverageHourlyRate()), icon: "chart.bar")
+        }
+    }
+    
+    private var earningsChart: some View {
+        Chart {
+            ForEach(groupedShifts, id: \.0) { date, shiftsForDate in
+                BarMark(
+                    x: .value("Date", date, unit: .day),
+                    y: .value("Earnings", calculateEarnings(for: shiftsForDate))
+                )
+                .foregroundStyle(settingsManager.accentColor)
+            }
+        }
+        .frame(height: 200)
+        .chartXAxis {
+            AxisMarks(values: .stride(by: .day)) { _ in
+                AxisGridLine()
+                AxisTick()
+                AxisValueLabel(format: .dateTime.day())
+            }
+        }
+    }
+    
+    private var shiftBreakdown: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Shift Breakdown")
+                .font(.headline)
+                .foregroundColor(settingsManager.accentColor)
+            
+            ForEach(groupedShifts, id: \.0) { date, shiftsForDate in
+                NavigationLink(destination: DailyEarningsView(date: date, shifts: shiftsForDate)) {
+                    HStack {
+                        Text(formatDate(date))
+                            .foregroundColor(colors.text)
+                        Spacer()
+                        Text(formatCurrency(calculateEarnings(for: shiftsForDate)))
+                            .foregroundColor(settingsManager.accentColor)
+                    }
+                }
+                .padding(.vertical, 8)
+                .background(colors.secondaryBackground)
+                .cornerRadius(8)
+            }
+        }
+    }
+    
+    private var loadingOverlay: some View {
+        Group {
+            if isLoading {
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle())
+                    .scaleEffect(1.5)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color.black.opacity(0.2))
+            }
+        }
+    }
+    
+    private func loadData() {
+        DispatchQueue.main.async {
+            self.isLoading = true
+            self.updateGroupedShifts()
+        }
+    }
+    
+    @MainActor
+    private func updateGroupedShifts() {
+        Task {
+            let grouped = Dictionary(grouping: self.filteredShifts) { shift in
+                Calendar.current.startOfDay(for: shift.date ?? Date())
+            }
+            let sortedGrouped = grouped.sorted { $0.key > $1.key }
+            self.groupedShifts = sortedGrouped
+            self.isLoading = false
         }
     }
     
@@ -75,23 +137,25 @@ struct EarningsView: View {
         switch selectedTimeframe {
         case 0: // This Week
             let startOfWeek = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: currentDate))!
-            return shifts.filter { $0.date?.compare(startOfWeek) != .orderedAscending }
+            return shifts.filter { shift in
+                guard let shiftDate = shift.date else { return false }
+                return shiftDate >= startOfWeek
+            }
         case 1: // This Month
             let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: currentDate))!
-            return shifts.filter { $0.date?.compare(startOfMonth) != .orderedAscending }
+            return shifts.filter { shift in
+                guard let shiftDate = shift.date else { return false }
+                return shiftDate >= startOfMonth
+            }
         case 2: // This Year
             let startOfYear = calendar.date(from: calendar.dateComponents([.year], from: currentDate))!
-            return shifts.filter { $0.date?.compare(startOfYear) != .orderedAscending }
+            return shifts.filter { shift in
+                guard let shiftDate = shift.date else { return false }
+                return shiftDate >= startOfYear
+            }
         default: // All Time
             return Array(shifts)
         }
-    }
-    
-    private var groupedShifts: [(Date, [Shift])] {
-        let grouped = Dictionary(grouping: filteredShifts) { shift in
-            Calendar.current.startOfDay(for: shift.date ?? Date())
-        }
-        return grouped.sorted { $0.key > $1.key }
     }
     
     private func calculateTotalEarnings() -> Double {
@@ -136,6 +200,32 @@ struct EarningsView: View {
     }
 }
 
+struct SummaryCard: View {
+    let title: String
+    let value: String
+    let icon: String
+    @EnvironmentObject var settingsManager: SettingsManager
+    @Environment(\.appColor) private var colors
+    
+    var body: some View {
+        VStack {
+            Image(systemName: icon)
+                .font(.largeTitle)
+                .foregroundColor(settingsManager.accentColor)
+            Text(title)
+                .font(.caption)
+                .foregroundColor(colors.secondaryText)
+            Text(value)
+                .font(.headline)
+                .foregroundColor(colors.text)
+        }
+        .frame(maxWidth: .infinity)
+        .padding()
+        .background(colors.secondaryBackground)
+        .cornerRadius(10)
+    }
+}
+
 struct DailyEarningsView: View {
     let date: Date
     let shifts: [Shift]
@@ -157,10 +247,11 @@ struct DailyEarningsView: View {
                     }
                     Spacer()
                     Text(formatCurrency(calculateEarnings(for: shift)))
-                        .foregroundColor(colors.text)
+                        .foregroundColor(settingsManager.accentColor)
                 }
             }
         }
+        .listStyle(InsetGroupedListStyle())
         .navigationTitle(formatDate(date))
         .background(colors.background.edgesIgnoringSafeArea(.all))
     }

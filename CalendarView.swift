@@ -39,7 +39,7 @@ struct CalendarView: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: { showingAddShift = true }) {
                         Image(systemName: "plus")
-                            .foregroundColor(colors.accent)
+                            .foregroundColor(settingsManager.accentColor)
                     }
                 }
             }
@@ -54,13 +54,14 @@ struct CalendarView: View {
                 }
             }
         }
+        .accentColor(settingsManager.accentColor)
     }
     
     private var monthHeader: some View {
         HStack {
             Button(action: { changeMonth(by: -1) }) {
                 Image(systemName: "chevron.left")
-                    .foregroundColor(colors.accent)
+                    .foregroundColor(settingsManager.accentColor)
             }
             Spacer()
             Text(dateFormatter.string(from: currentMonth))
@@ -69,7 +70,7 @@ struct CalendarView: View {
             Spacer()
             Button(action: { changeMonth(by: 1) }) {
                 Image(systemName: "chevron.right")
-                    .foregroundColor(colors.accent)
+                    .foregroundColor(settingsManager.accentColor)
             }
         }
         .padding(.horizontal)
@@ -98,7 +99,8 @@ struct CalendarView: View {
                             isSelected: calendar.isDate(date, inSameDayAs: selectedDate),
                             isToday: calendar.isDateInToday(date),
                             shifts: shiftsForDate(date),
-                            colors: colors)
+                            colors: colors,
+                            accentColor: settingsManager.accentColor)
                     .onTapGesture {
                         selectedDate = date
                     }
@@ -112,7 +114,11 @@ struct CalendarView: View {
     
     private var selectedDateShifts: some View {
         List {
-            Section(header: Text(selectedDate, style: .date).textCase(.none).foregroundColor(colors.text)) {
+            Section(header: Text(selectedDate, style: .date)
+                .textCase(.none)
+                .foregroundColor(settingsManager.accentColor)
+                .font(.headline)
+            ) {
                 if let shifts = shiftsForDate(selectedDate), !shifts.isEmpty {
                     ForEach(shifts) { shift in
                         ShiftRow(shift: shift, colors: colors)
@@ -149,6 +155,7 @@ struct DayCell: View {
     let isToday: Bool
     let shifts: [Shift]?
     let colors: AppColor
+    let accentColor: Color
     
     private let calendar = Calendar.current
     
@@ -158,7 +165,7 @@ struct DayCell: View {
                 .fill(backgroundColor)
                 .overlay(
                     Circle()
-                        .stroke(isToday ? colors.accent : Color.clear, lineWidth: 1)
+                        .stroke(isToday ? accentColor : Color.clear, lineWidth: 1)
                 )
             VStack(spacing: 2) {
                 Text("\(calendar.component(.day, from: date))")
@@ -179,21 +186,21 @@ struct DayCell: View {
     }
     
     private var backgroundColor: Color {
-        isSelected ? colors.accent.opacity(0.2) : Color.clear
+        isSelected ? accentColor.opacity(0.2) : Color.clear
     }
     
     private var textColor: Color {
         if isSelected {
-            return colors.accent
+            return accentColor
         } else if isToday {
-            return colors.accent
+            return accentColor
         } else {
             return colors.text
         }
     }
     
     private var dotColor: Color {
-        isSelected ? colors.accent : colors.secondaryText
+        isSelected ? accentColor : colors.secondaryText
     }
 }
 
@@ -219,7 +226,7 @@ struct ShiftRow: View {
                 Text(formatCurrency(calculateEarnings()))
                     .font(.callout)
                     .fontWeight(.semibold)
-                    .foregroundColor(colors.text)
+                    .foregroundColor(settingsManager.accentColor)
                 Text(formatDuration())
                     .font(.caption)
                     .foregroundColor(colors.secondaryText)
