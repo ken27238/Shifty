@@ -1,22 +1,44 @@
 import SwiftUI
+import UserNotifications
+import Combine
+
+class NotificationHandler: NSObject, ObservableObject, UNUserNotificationCenterDelegate {
+    @Published var lastNotificationId: String?
+    
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler([.banner, .sound])
+    }
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
+        let shiftId = response.notification.request.identifier
+        print("Notification tapped for shift: \(shiftId)")
+        lastNotificationId = shiftId
+        completionHandler()
+    }
+}
 
 @main
 struct ShiftyApp: App {
     let persistenceController = PersistenceController.shared
     @StateObject private var settingsManager = SettingsManager()
+    @StateObject private var notificationHandler = NotificationHandler()
 
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
                 .environmentObject(settingsManager)
-                .withAppColorScheme()  // Apply our custom color scheme
+                .environmentObject(notificationHandler)
+                .withAppColorScheme()
                 .accentColor(settingsManager.accentColor)
                 .onChange(of: settingsManager.colorScheme) { _ in
                     updateColorScheme()
                 }
                 .onChange(of: settingsManager.accentColor) { _ in
                     // This will ensure the app updates when the accent color changes
+                }
+                .onAppear {
+                    setupNotifications()
                 }
         }
     }
@@ -36,6 +58,10 @@ struct ShiftyApp: App {
             window.overrideUserInterfaceStyle = .unspecified
         }
     }
+
+    private func setupNotifications() {
+        UNUserNotificationCenter.current().delegate = notificationHandler
+    }
 }
 
 // Add this extension to your AppColor struct
@@ -50,4 +76,9 @@ extension AppColor {
             return .light  // Default to light, or you could use a system-based default
         }
     }
+}
+
+// You might want to add this extension to handle custom notifications within your app
+extension Notification.Name {
+    static let openShiftDetail = Notification.Name("openShiftDetail")
 }

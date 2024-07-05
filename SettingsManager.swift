@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import UserNotifications
 
 enum AppColorScheme: String {
     case light
@@ -131,5 +132,46 @@ class SettingsManager: ObservableObject {
             earnings *= 0.8
         }
         return earnings
+    }
+    
+    // MARK: - Notification Methods
+    func requestNotificationPermission() {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+            DispatchQueue.main.async {
+                self.shiftReminders = granted
+                if granted {
+                    print("Notification permission granted")
+                } else if let error = error {
+                    print("Error requesting notification permission: \(error.localizedDescription)")
+                } else {
+                    print("Notification permission denied")
+                }
+            }
+        }
+    }
+    
+    func scheduleNotification(for shift: Shift) {
+        guard shiftReminders, let shiftStart = shift.startTime else { return }
+        
+        let content = UNMutableNotificationContent()
+        content.title = "Upcoming Shift"
+        content.body = "Your shift starts in \(reminderTime) minutes"
+        content.sound = .default
+        
+        let triggerDate = Calendar.current.date(byAdding: .minute, value: -reminderTime, to: shiftStart)!
+        let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: triggerDate)
+        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+        
+        let request = UNNotificationRequest(identifier: shift.objectID.uriRepresentation().absoluteString, content: content, trigger: trigger)
+        
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("Error scheduling notification: \(error.localizedDescription)")
+            }
+        }
+    }
+    
+    func removeNotification(for shift: Shift) {
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [shift.objectID.uriRepresentation().absoluteString])
     }
 }

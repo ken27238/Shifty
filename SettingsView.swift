@@ -112,6 +112,11 @@ struct SettingsView: View {
     private var notificationsSection: some View {
         Section {
             Toggle("Shift Reminders", isOn: $settingsManager.shiftReminders)
+                .onChange(of: settingsManager.shiftReminders) { newValue in
+                    if newValue {
+                        settingsManager.requestNotificationPermission()
+                    }
+                }
                 .accessibilityHint("Toggle to enable or disable shift reminders")
             
             if settingsManager.shiftReminders {
@@ -121,6 +126,12 @@ struct SettingsView: View {
                 .accessibilityLabel("Reminder Time")
                 .accessibilityValue("\(settingsManager.reminderTime) minutes before shift")
                 .accessibilityHint("Adjust how many minutes before a shift to receive a reminder")
+            }
+            
+            Button("Manage Notification Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
             }
         } header: {
             Label("Notifications", systemImage: "bell")

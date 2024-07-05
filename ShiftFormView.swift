@@ -6,6 +6,8 @@ struct ShiftFormView: View {
     @EnvironmentObject var settingsManager: SettingsManager
     @Environment(\.appColor) private var colors
     
+    @State private var name: String
+    @State private var address: String
     @State private var date: Date
     @State private var startTime: Date
     @State private var endTime: Date
@@ -22,6 +24,8 @@ struct ShiftFormView: View {
         self.isNewShift = isNewShift
         
         let initialDate = shift?.date ?? preselectedDate ?? Date()
+        _name = State(initialValue: shift?.name ?? "")
+        _address = State(initialValue: shift?.address ?? "")
         _date = State(initialValue: initialDate)
         _startTime = State(initialValue: shift?.startTime ?? initialDate)
         _endTime = State(initialValue: shift?.endTime ?? initialDate.addingTimeInterval(3600)) // Default to 1 hour
@@ -31,6 +35,11 @@ struct ShiftFormView: View {
     
     var body: some View {
         Form {
+            Section(header: Text("Shift Details").foregroundColor(settingsManager.accentColor)) {
+                TextField("Shift Name", text: $name)
+                TextField("Address", text: $address)
+            }
+            
             dateSection
             timeSection
             durationSection
@@ -60,6 +69,19 @@ struct ShiftFormView: View {
         .onAppear {
             if isNewShift {
                 endTime = startTime.addingTimeInterval(settingsManager.defaultShiftDuration * 3600)
+            }
+        }
+        .onChange(of: startTime) { _ in
+            if selectedDuration == 0 {
+                endTime = startTime.addingTimeInterval(3600) // Default to 1 hour
+            } else {
+                endTime = startTime.addingTimeInterval(selectedDuration)
+            }
+        }
+        .onChange(of: endTime) { _ in
+            let duration = endTime.timeIntervalSince(startTime)
+            if duration != selectedDuration {
+                selectedDuration = 0
             }
         }
     }
@@ -126,7 +148,7 @@ struct ShiftFormView: View {
     }
     
     private var isFormValid: Bool {
-        return endTime > startTime && notes.count <= 500
+        return !name.isEmpty && endTime > startTime && notes.count <= 500
     }
     
     private var formattedDuration: String {
@@ -139,6 +161,8 @@ struct ShiftFormView: View {
     private func saveShift() {
         let shiftToSave = isNewShift ? Shift(context: viewContext) : (shift ?? Shift(context: viewContext))
         
+        shiftToSave.name = name
+        shiftToSave.address = address
         shiftToSave.date = date
         shiftToSave.startTime = startTime
         shiftToSave.endTime = endTime

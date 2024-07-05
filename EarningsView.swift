@@ -11,8 +11,8 @@ struct EarningsView: View {
     @EnvironmentObject var settingsManager: SettingsManager
     @Environment(\.appColor) private var colors
     
-    @State private var selectedTimeframe = 1 // Default to "This Month"
-    let timeframes = ["This Week", "This Month", "This Year", "All Time"]
+    @State private var selectedTimeframe = 0 // Default to "This Week"
+    let timeframes = ["This Week", "Bi-Weekly"]
     
     @State private var groupedShifts: [(Date, [Shift])] = []
     @State private var isLoading = true
@@ -44,7 +44,7 @@ struct EarningsView: View {
         }
         .pickerStyle(SegmentedPickerStyle())
         .onChange(of: selectedTimeframe) { _ in
-            updateGroupedShifts()
+            loadData()
         }
     }
     
@@ -83,18 +83,32 @@ struct EarningsView: View {
                 .foregroundColor(settingsManager.accentColor)
             
             ForEach(groupedShifts, id: \.0) { date, shiftsForDate in
-                NavigationLink(destination: DailyEarningsView(date: date, shifts: shiftsForDate)) {
-                    HStack {
-                        Text(formatDate(date))
-                            .foregroundColor(colors.text)
-                        Spacer()
-                        Text(formatCurrency(calculateEarnings(for: shiftsForDate)))
-                            .foregroundColor(settingsManager.accentColor)
+                VStack {
+                    Text(formatDate(date))
+                        .font(.headline)
+                        .foregroundColor(colors.text)
+                    ForEach(shiftsForDate, id: \.objectID) { shift in
+                        NavigationLink(destination: DailyEarningsView(date: date, shifts: shiftsForDate)) {
+                            HStack {
+                                VStack(alignment: .leading) {
+                                    Text("\(shift.startTime ?? Date(), style: .time) - \(shift.endTime ?? Date(), style: .time)")
+                                        .foregroundColor(colors.text)
+                                    if let notes = shift.notes, !notes.isEmpty {
+                                        Text(notes)
+                                            .font(.caption)
+                                            .foregroundColor(colors.secondaryText)
+                                    }
+                                }
+                                Spacer()
+                                Text(formatCurrency(calculateEarnings(for: [shift])))
+                                    .foregroundColor(settingsManager.accentColor)
+                            }
+                            .padding(.vertical, 8)
+                            .background(colors.secondaryBackground)
+                            .cornerRadius(8)
+                        }
                     }
                 }
-                .padding(.vertical, 8)
-                .background(colors.secondaryBackground)
-                .cornerRadius(8)
             }
         }
     }
@@ -121,51 +135,50 @@ struct EarningsView: View {
     @MainActor
     private func updateGroupedShifts() {
         Task {
-            let grouped = Dictionary(grouping: self.filteredShifts) { shift in
+            let filteredShifts = self.filteredShifts()
+            let grouped = Dictionary(grouping: filteredShifts) { shift in
                 Calendar.current.startOfDay(for: shift.date ?? Date())
             }
             let sortedGrouped = grouped.sorted { $0.key > $1.key }
             self.groupedShifts = sortedGrouped
             self.isLoading = false
+            print("Updated grouped shifts: \(self.groupedShifts)")
         }
     }
     
-    private var filteredShifts: [Shift] {
+    private func filteredShifts() -> [Shift] {
         let currentDate = Date()
         let calendar = Calendar.current
         
         switch selectedTimeframe {
         case 0: // This Week
             let startOfWeek = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: currentDate))!
+            print("Filtering shifts for This Week starting from: \(startOfWeek)")
             return shifts.filter { shift in
                 guard let shiftDate = shift.date else { return false }
-                return shiftDate >= startOfWeek
+                return shiftDate >= startOfWeek && shiftDate <= currentDate
             }
-        case 1: // This Month
-            let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: currentDate))!
+        case 1: // Bi-Weekly
+            let startOfBiWeek = calendar.date(byAdding: .day, value: -14, to: currentDate)!
+            print("Filtering shifts for Bi-Weekly starting from: \(startOfBiWeek)")
             return shifts.filter { shift in
                 guard let shiftDate = shift.date else { return false }
-                return shiftDate >= startOfMonth
+                return shiftDate >= startOfBiWeek && shiftDate <= currentDate
             }
-        case 2: // This Year
-            let startOfYear = calendar.date(from: calendar.dateComponents([.year], from: currentDate))!
-            return shifts.filter { shift in
-                guard let shiftDate = shift.date else { return false }
-                return shiftDate >= startOfYear
-            }
-        default: // All Time
+        default: // Default case to avoid compiler error
+            print("Filtering shifts for Default")
             return Array(shifts)
         }
     }
     
     private func calculateTotalEarnings() -> Double {
-        filteredShifts.reduce(0) { total, shift in
+        filteredShifts().reduce(0) { total, shift in
             total + calculateEarnings(for: [shift])
         }
     }
     
     private func calculateTotalHours() -> Double {
-        filteredShifts.reduce(0) { total, shift in
+        filteredShifts().reduce(0) { total, shift in
             guard let start = shift.startTime, let end = shift.endTime else { return total }
             return total + end.timeIntervalSince(start) / 3600
         }
@@ -234,7 +247,7 @@ struct DailyEarningsView: View {
     
     var body: some View {
         List {
-            ForEach(shifts, id: \.self) { shift in
+            ForEach(shifts, id: \.objectID) { shift in
                 HStack {
                     VStack(alignment: .leading) {
                         Text("\(shift.startTime ?? Date(), style: .time) - \(shift.endTime ?? Date(), style: .time)")

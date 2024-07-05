@@ -4,36 +4,50 @@ struct ContentView: View {
     @EnvironmentObject var settingsManager: SettingsManager
     @Environment(\.appColor) private var colors
     @AppStorage("userInterfaceStyle") private var userInterfaceStyle: UIUserInterfaceStyle = .unspecified
-
+    @State private var isShowingSplash = true
+    
     var body: some View {
-        TabView {
-            HomeView()
-                .tabItem {
-                    Label("Home", systemImage: "house")
+        Group {
+            if isShowingSplash {
+                SplashScreenView()
+                    .onAppear {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                            withAnimation {
+                                isShowingSplash = false
+                            }
+                        }
+                    }
+            } else {
+                TabView {
+                    HomeView()
+                        .tabItem {
+                            Label("Home", systemImage: "house")
+                        }
+                    
+                    ShiftListView()
+                        .tabItem {
+                            Label("Shifts", systemImage: "list.bullet")
+                        }
+                    
+                    CalendarView()
+                        .tabItem {
+                            Label("Calendar", systemImage: "calendar")
+                        }
+                    
+                    EarningsView()
+                        .tabItem {
+                            Label("Earnings", systemImage: "dollarsign.circle")
+                        }
+                    
+                    SettingsView()
+                        .tabItem {
+                            Label("Settings", systemImage: "gear")
+                        }
                 }
-            
-            ShiftListView()
-                .tabItem {
-                    Label("Shifts", systemImage: "list.bullet")
-                }
-            
-            CalendarView()
-                .tabItem {
-                    Label("Calendar", systemImage: "calendar")
-                }
-            
-            EarningsView()
-                .tabItem {
-                    Label("Earnings", systemImage: "dollarsign.circle")
-                }
-            
-            SettingsView()
-                .tabItem {
-                    Label("Settings", systemImage: "gear")
-                }
+                .accentColor(settingsManager.accentColor)
+                .background(colors.background.ignoresSafeArea())
+            }
         }
-        .accentColor(settingsManager.accentColor)
-        .background(colors.background.ignoresSafeArea())
         .onChange(of: settingsManager.colorScheme) { newValue in
             updateColorScheme(newValue)
         }
