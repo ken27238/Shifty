@@ -368,59 +368,64 @@ struct PayView: View {
             }
             .buttonStyle(.borderless)
 
-            VStack(alignment: .leading, spacing: 4) {
-                LabeledContent("Earnings") {
+            VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text(stats.totalEarnings, format: .currency(code: Locale.currencyCode))
-                        .font(.headline)
-                }
-                if stats.previousHasShifts, abs(stats.totalEarnings - stats.previousEarnings) > 0.005 {
-                    comparisonLabel(stats)
-                }
-            }
-
-            if stats.overtimeExtra > 0.005 || (tipsEnabled && stats.tips > 0) {
-                LabeledContent("Base Pay") {
-                    Text(stats.basePay, format: .currency(code: Locale.currencyCode))
-                }
-                if stats.overtimeExtra > 0.005 {
-                    LabeledContent("Overtime") {
-                        Text("+\(stats.overtimeExtra.formatted(.currency(code: Locale.currencyCode)))")
-                            .foregroundStyle(.orange)
+                        .font(.title.bold())
+                    if stats.previousHasShifts, abs(stats.totalEarnings - stats.previousEarnings) > 0.005 {
+                        comparisonLabel(stats)
                     }
                 }
-                if tipsEnabled, stats.tips > 0 {
-                    LabeledContent("Tips") {
-                        Text(stats.tips, format: .currency(code: Locale.currencyCode))
+
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 88), alignment: .topLeading)],
+                    alignment: .leading,
+                    spacing: 12
+                ) {
+                    miniStat("Hours", stats.hours.formatted(.number.precision(.fractionLength(0...1))))
+                    miniStat("Shifts", stats.shifts.count.formatted())
+                    if stats.hours > 0 {
+                        miniStat("Avg. Rate", (stats.totalEarnings / stats.hours)
+                            .formatted(.currency(code: Locale.currencyCode).precision(.fractionLength(0...2))))
+                    }
+                    if stats.overtimeExtra > 0.005 || (tipsEnabled && stats.tips > 0) {
+                        miniStat("Base Pay", stats.basePay
+                            .formatted(.currency(code: Locale.currencyCode).precision(.fractionLength(0))))
+                    }
+                    if stats.overtimeExtra > 0.005 {
+                        miniStat("Overtime", "+\(stats.overtimeExtra.formatted(.currency(code: Locale.currencyCode).precision(.fractionLength(0))))", tint: .orange)
+                    }
+                    if tipsEnabled, stats.tips > 0 {
+                        miniStat("Tips", stats.tips
+                            .formatted(.currency(code: Locale.currencyCode).precision(.fractionLength(0))))
+                    }
+                    if takeHomePercent > 0 {
+                        miniStat("Take-Home", (stats.totalEarnings * (1 - takeHomePercent / 100))
+                            .formatted(.currency(code: Locale.currencyCode).precision(.fractionLength(0))))
+                    }
+                    if stats.expenses > 0 {
+                        miniStat("Expenses", "−\(stats.expenses.formatted(.currency(code: Locale.currencyCode).precision(.fractionLength(0))))")
+                    }
+                    if stats.mileage > 0 {
+                        miniStat("Mileage", "\(stats.mileage.formatted(.number.precision(.fractionLength(0...1)))) mi")
                     }
                 }
             }
+            .padding(.vertical, 4)
+            .accessibilityElement(children: .combine)
+        }
+    }
 
-            if stats.expenses > 0 {
-                LabeledContent("Expenses") {
-                    Text("−\(stats.expenses.formatted(.currency(code: Locale.currencyCode)))")
-                        .foregroundStyle(.secondary)
-                }
-            }
-            if stats.mileage > 0 {
-                LabeledContent("Mileage") {
-                    Text("\(stats.mileage.formatted(.number.precision(.fractionLength(0...1)))) mi")
-                }
-            }
-            if stats.hours > 0 {
-                LabeledContent("Avg. Hourly Rate") {
-                    Text(stats.totalEarnings / stats.hours, format: .currency(code: Locale.currencyCode))
-                }
-            }
-            LabeledContent("Hours") {
-                Text(stats.hours.formatted(.number.precision(.fractionLength(0...1))))
-            }
-            if takeHomePercent > 0 {
-                LabeledContent("Est. Take-Home") {
-                    Text(stats.totalEarnings * (1 - takeHomePercent / 100),
-                         format: .currency(code: Locale.currencyCode))
-                }
-            }
-            LabeledContent("Shifts", value: stats.shifts.count, format: .number)
+    private func miniStat(_ label: LocalizedStringKey, _ value: String, tint: Color? = nil) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(value)
+                .font(.headline)
+                .foregroundStyle(tint ?? .primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Text(label)
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 
