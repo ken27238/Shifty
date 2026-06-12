@@ -30,14 +30,14 @@ struct HomeView: View {
 
     private var nextShift: Shift? { upcomingShifts.first }
 
-    private var comingUpShifts: [Shift] { Array(upcomingShifts.dropFirst().prefix(4)) }
+    private var comingUpShifts: [Shift] { Array(upcomingShifts.dropFirst().prefix(3)) }
 
     private var currentShift: Shift? {
         shifts.first { $0.start <= .now && $0.end > .now }
     }
 
     private var recentShifts: [Shift] {
-        Array(shifts.filter { $0.end <= .now }.prefix(4))
+        Array(shifts.filter { $0.end <= .now }.prefix(3))
     }
 
     private var lastCompletedShift: Shift? { recentShifts.first }
@@ -49,7 +49,6 @@ struct HomeView: View {
 
     private var thisWeekShifts: [Shift] { shifts(in: .weekOfYear, of: .now) }
 
-    /// Shifts this week that are already finished — the tiles show these.
     private var completedWeekShifts: [Shift] {
         thisWeekShifts.filter { $0.end <= .now }
     }
@@ -121,135 +120,251 @@ struct HomeView: View {
     }
 
     private var content: some View {
-        List {
-            if let shift = currentShift {
-                Section("Happening Now") {
-                    shiftButton(shift)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                Text(Date.now.formatted(.dateTime.weekday(.wide).month(.wide).day()))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                heroCard
+                quickActions
+                weekCard
+
+                if !comingUpShifts.isEmpty {
+                    sectionRows(
+                        title: "Coming Up",
+                        shifts: comingUpShifts,
+                        trailing: .duration
+                    )
+                }
+
+                if !recentShifts.isEmpty {
+                    sectionRows(
+                        title: "Recent",
+                        shifts: recentShifts,
+                        trailing: .earnings,
+                        accessory: ("See All", { selectedTab = .shifts })
+                    )
                 }
             }
-
-            if let shift = nextShift {
-                Section("Up Next") {
-                    shiftButton(shift)
-                    Text("Starts in \(Text(shift.start, style: .relative))")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-            } else if currentShift == nil, let last = lastCompletedShift {
-                Section {
-                    Button {
-                        repeatShift(last, daysFromToday: 0)
-                    } label: {
-                        Label("Repeat Last Shift Today", systemImage: "arrow.counterclockwise.circle")
-                    }
-                }
-            }
-
-            if !comingUpShifts.isEmpty {
-                Section("Coming Up") {
-                    ForEach(comingUpShifts) { shift in
-                        shiftButton(shift)
-                    }
-                }
-            }
-
-            thisWeekSection
-            totalsSection
-
-            if !recentShifts.isEmpty {
-                recentSection
-            }
+            .padding(.horizontal)
+            .padding(.bottom)
         }
     }
 
-    // MARK: Sections
+    // MARK: Hero
 
-    private var thisWeekSection: some View {
-        Section("This Week") {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 12) {
-                    StatTile(
-                        title: "Hours",
-                        value: weekHoursWorked
-                            .formatted(.number.precision(.fractionLength(0...1)))
-                    )
-                    StatTile(
-                        title: "Earnings",
-                        value: weekEarningsSoFar
-                            .formatted(.currency(code: Locale.currencyCode).precision(.fractionLength(0)))
-                    )
-                    StatTile(
-                        title: "Shifts",
-                        value: completedWeekShifts.count.formatted()
+    @ViewBuilder
+    private var heroCard: some View {
+        if let shift = currentShift {
+            HeroCard(
+                caption: shift.job.map { "Happening Now · \($0.name)" } ?? "Happening Now",
+                color: shift.job?.color ?? .accentColor,
+                action: { shiftBeingEdited = shift }
+            ) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("\(shift.start.formatted(date: .omitted, time: .shortened)) – \(shift.end.formatted(date: .omitted, time: .shortened))")
+                        .font(.title3.bold())
+                    Spacer()
+                    Text(timerInterval: shift.start...shift.end, countsDown: false)
+                        .font(.title3.bold())
+                        .monospacedDigit()
+                }
+                Text("Ends at \(shift.end.formatted(date: .omitted, time: .shortened)) · ≈ \(shift.earnings.formatted(.currency(code: Locale.currencyCode).precision(.fractionLength(0))))")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        } else if let shift = nextShift {
+            HeroCard(
+                caption: shift.job.map { "Up Next · \($0.name)" } ?? "Up Next",
+                color: shift.job?.color ?? .accentColor,
+                action: { shiftBeingEdited = shift }
+            ) {
+                Text("\(relativeDay(of: shift.start)), \(shift.start.formatted(date: .omitted, time: .shortened)) – \(shift.end.formatted(date: .omitted, time: .shortened))")
+                    .font(.title3.bold())
+                HStack {
+                    Label {
+                        Text("Starts in \(Text(shift.start, style: .relative))")
+                    } icon: {
+                        Image(systemName: "clock")
+                    }
+                    Spacer()
+                    if shift.earnings > 0 {
+                        Text("≈ \(shift.earnings.formatted(.currency(code: Locale.currencyCode).precision(.fractionLength(0))))")
+                    }
+                }
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            }
+        } else {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("No Upcoming Shifts")
+                    .font(.headline)
+                Text("Add a shift or repeat your last one.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16)
+            .background(.fill.tertiary, in: RoundedRectangle(cornerRadius: 16))
+        }
+    }
+
+    private func relativeDay(of date: Date) -> String {
+        if calendar.isDateInToday(date) {
+            String(localized: "Today")
+        } else if calendar.isDateInTomorrow(date) {
+            String(localized: "Tomorrow")
+        } else {
+            date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())
+        }
+    }
+
+    // MARK: Quick actions
+
+    private var quickActions: some View {
+        Button {
+            if let last = lastCompletedShift {
+                repeatShift(last, daysFromToday: 0)
+            }
+        } label: {
+            Label("Repeat Last Shift", systemImage: "arrow.counterclockwise")
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.bordered)
+        .disabled(lastCompletedShift == nil)
+    }
+
+    // MARK: Week card
+
+    private var weekCard: some View {
+        let monthShifts = shifts(in: .month, of: .now)
+        let yearShifts = shifts(in: .year, of: .now)
+
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("This Week")
+                    .font(.headline)
+                Spacer()
+                Button {
+                    selectedTab = .pay
+                } label: {
+                    HStack(spacing: 2) {
+                        Text("View Pay")
+                        Image(systemName: "chevron.forward")
+                            .font(.caption2)
+                            .accessibilityHidden(true)
+                    }
+                    .font(.subheadline)
+                }
+            }
+
+            HStack(alignment: .firstTextBaseline, spacing: 20) {
+                weekStat(
+                    value: weekHoursWorked.formatted(.number.precision(.fractionLength(0...1))),
+                    label: "hours"
+                )
+                weekStat(
+                    value: weekEarningsSoFar.formatted(.currency(code: Locale.currencyCode).precision(.fractionLength(0))),
+                    label: "earned"
+                )
+                weekStat(
+                    value: completedWeekShifts.count.formatted(),
+                    label: "shifts"
+                )
+                if hasFutureShiftsThisWeek, projectedWeekEarnings > 0 {
+                    Spacer()
+                    weekStat(
+                        value: projectedWeekEarnings.formatted(.currency(code: Locale.currencyCode).precision(.fractionLength(0))),
+                        label: "on track",
+                        muted: true
                     )
                 }
+            }
 
-                // While shifts remain, show the week as progress toward the plan.
-                if hasFutureShiftsThisWeek {
-                    VStack(alignment: .leading, spacing: 6) {
-                        ProgressView(
-                            value: min(weekHoursWorked, projectedWeekHours),
-                            total: max(projectedWeekHours, 0.01)
-                        )
-                        HStack {
-                            Text("\(weekHoursWorked.formatted(.number.precision(.fractionLength(0...1)))) of \(projectedWeekHours.formatted(.number.precision(.fractionLength(0...1)))) hrs")
-                            Spacer()
-                            if projectedWeekEarnings > 0 {
-                                Text("On track for \(projectedWeekEarnings.formatted(.currency(code: Locale.currencyCode).precision(.fractionLength(0))))")
-                            }
-                        }
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                    }
-                    .padding(.top, 4)
-                    .accessibilityElement(children: .combine)
-                } else if !lastWeekShifts.isEmpty, weekHoursDelta != 0 {
-                    // Compare finished weeks only; mid-week deltas mislead.
+            if hasFutureShiftsThisWeek {
+                ProgressView(
+                    value: min(weekHoursWorked, projectedWeekHours),
+                    total: max(projectedWeekHours, 0.01)
+                )
+                Text("\(weekHoursWorked.formatted(.number.precision(.fractionLength(0...1)))) of \(projectedWeekHours.formatted(.number.precision(.fractionLength(0...1)))) hrs · \(totalsFootnote(month: monthShifts, year: yearShifts))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                if !lastWeekShifts.isEmpty, weekHoursDelta != 0 {
                     Label {
                         Text("\(abs(weekHoursDelta).formatted(.number.precision(.fractionLength(0...1)))) hrs \(weekHoursDelta > 0 ? "more" : "less") than last week")
                     } icon: {
                         Image(systemName: weekHoursDelta > 0 ? "arrow.up" : "arrow.down")
                     }
-                    .font(.footnote)
+                    .font(.caption)
                     .foregroundStyle(weekHoursDelta > 0 ? .green : .red)
                 }
+                Text(totalsFootnote(month: monthShifts, year: yearShifts))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
-            .listRowInsets(EdgeInsets())
-            .listRowBackground(Color.clear)
+        }
+        .padding(16)
+        .background(.fill.tertiary, in: RoundedRectangle(cornerRadius: 16))
+        .accessibilityElement(children: .combine)
+    }
 
-            Button("View Pay Details") {
-                selectedTab = .pay
-            }
+    private func weekStat(value: String, label: LocalizedStringKey, muted: Bool = false) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(value)
+                .font(.title3.bold())
+                .foregroundStyle(muted ? .secondary : .primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Text(label)
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 
-    private var totalsSection: some View {
-        let monthShifts = shifts(in: .month, of: .now)
-        let yearShifts = shifts(in: .year, of: .now)
-        let allHours = shifts.reduce(0) { $0 + $1.workedHours }
+    private func totalsFootnote(month: [Shift], year: [Shift]) -> String {
+        let monthName = Date.now.formatted(.dateTime.month(.wide))
+        let yearName = Date.now.formatted(.dateTime.year())
+        let monthEarnings = PayCalculator.totalEarnings(for: month, calendar: calendar)
+            .formatted(.currency(code: Locale.currencyCode).precision(.fractionLength(0)))
+        let yearEarnings = PayCalculator.totalEarnings(for: year, calendar: calendar)
+            .formatted(.currency(code: Locale.currencyCode).precision(.fractionLength(0)))
+        return "\(monthName) \(monthEarnings) · \(yearName) \(yearEarnings)"
+    }
 
-        return Section("Totals") {
-            Button {
-                selectedTab = .pay
-            } label: {
-                LabeledContent("This Month") {
-                    Text(summary(of: monthShifts))
+    // MARK: Row sections
+
+    private enum RowTrailing {
+        case duration
+        case earnings
+    }
+
+    private func sectionRows(
+        title: LocalizedStringKey,
+        shifts: [Shift],
+        trailing: RowTrailing,
+        accessory: (label: LocalizedStringKey, action: () -> Void)? = nil
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(title)
+                    .font(.headline)
+                Spacer()
+                if let accessory {
+                    Button(accessory.label, action: accessory.action)
+                        .font(.subheadline)
                 }
             }
-            .buttonStyle(.plain)
-            LabeledContent("This Year") {
-                Text(summary(of: yearShifts))
-            }
-            LabeledContent("All Time") {
-                Text("\(shifts.count) shifts · \(allHours.formatted(.number.precision(.fractionLength(0...1)))) hrs")
-            }
-        }
-    }
 
-    private var recentSection: some View {
-        Section("Recent") {
-            ForEach(recentShifts) { shift in
-                shiftButton(shift)
+            VStack(spacing: 0) {
+                ForEach(shifts) { shift in
+                    Button {
+                        shiftBeingEdited = shift
+                    } label: {
+                        compactRow(shift, trailing: trailing)
+                    }
+                    .buttonStyle(.plain)
                     .contextMenu {
                         Button("Repeat Today", systemImage: "arrow.counterclockwise") {
                             repeatShift(shift, daysFromToday: 0)
@@ -263,23 +378,51 @@ struct HomeView: View {
                             refreshWidgets()
                         }
                     }
+
+                    if shift.persistentModelID != shifts.last?.persistentModelID {
+                        Divider()
+                            .padding(.leading, 16)
+                    }
+                }
             }
-            Button("See All Shifts") {
-                selectedTab = .shifts
+            .background(.fill.tertiary, in: RoundedRectangle(cornerRadius: 16))
+        }
+    }
+
+    private func compactRow(_ shift: Shift, trailing: RowTrailing) -> some View {
+        HStack(spacing: 10) {
+            RoundedRectangle(cornerRadius: 1.5)
+                .fill(shift.job?.color ?? Color.secondary)
+                .frame(width: 3, height: 32)
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("\(shift.start.formatted(.dateTime.weekday(.abbreviated))) · \(shift.job?.name ?? String(localized: "Shift"))")
+                    .font(.subheadline.weight(.medium))
+                Text("\(shift.start.formatted(date: .omitted, time: .shortened)) – \(shift.end.formatted(date: .omitted, time: .shortened))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            switch trailing {
+            case .duration:
+                Text(Duration.seconds(shift.workedDuration), format: .units(allowed: [.hours, .minutes], width: .narrow))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            case .earnings:
+                Text(shift.earnings, format: .currency(code: Locale.currencyCode))
+                    .font(.subheadline.weight(.medium))
             }
         }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: Actions
-
-    private func shiftButton(_ shift: Shift) -> some View {
-        Button {
-            shiftBeingEdited = shift
-        } label: {
-            ShiftRow(shift: shift)
-        }
-        .buttonStyle(.plain)
-    }
 
     private func repeatShift(_ shift: Shift, daysFromToday: Int) {
         guard let targetDay = calendar.date(
@@ -303,32 +446,32 @@ struct HomeView: View {
         }
         refreshWidgets()
     }
-
-    private func summary(of shifts: [Shift]) -> String {
-        let hours = shifts.reduce(0) { $0 + $1.workedHours }
-        let earnings = PayCalculator.totalEarnings(for: shifts, calendar: calendar)
-        return "\(hours.formatted(.number.precision(.fractionLength(0...1)))) hrs · \(earnings.formatted(.currency(code: Locale.currencyCode).precision(.fractionLength(0))))"
-    }
 }
 
-private struct StatTile: View {
-    let title: LocalizedStringKey
-    let value: String
+/// A prominent tinted card for the current or next shift.
+private struct HeroCard<Content: View>: View {
+    let caption: String
+    let color: Color
+    let action: () -> Void
+    @ViewBuilder let content: Content
 
     var body: some View {
-        VStack(spacing: 4) {
-            Text(value)
-                .font(.title2.bold())
-                .minimumScaleFactor(0.6)
-                .lineLimit(1)
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(caption)
+                    .font(.caption.weight(.semibold))
+                    .textCase(.uppercase)
+                    .foregroundStyle(color)
+                content
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16)
+            .background(color.opacity(0.15), in: RoundedRectangle(cornerRadius: 16))
+            .contentShape(RoundedRectangle(cornerRadius: 16))
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
-        .background(.fill.tertiary, in: RoundedRectangle(cornerRadius: 12))
+        .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
+        .accessibilityHint("Edits this shift")
     }
 }
 
