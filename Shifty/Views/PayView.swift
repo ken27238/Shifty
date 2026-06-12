@@ -28,7 +28,22 @@ struct PayView: View {
     /// Any date inside the period currently being viewed.
     @State private var referenceDate: Date = .now
 
-    private var calendar: Calendar { .current }
+    // Declared so the view refreshes when these settings change.
+    @AppStorage(SettingsKeys.weekStartDay, store: .shared) private var weekStartDay = 0
+    @AppStorage(SettingsKeys.overtimeEnabled, store: .shared) private var overtimeEnabled = false
+    @AppStorage(SettingsKeys.overtimeWeekly, store: .shared) private var overtimeWeekly = true
+    @AppStorage(SettingsKeys.overtimeThreshold, store: .shared) private var overtimeThreshold = 40.0
+    @AppStorage(SettingsKeys.overtimeMultiplier, store: .shared) private var overtimeMultiplier = 1.5
+    @AppStorage(SettingsKeys.takeHomePercent, store: .shared) private var takeHomePercent = 0.0
+    @AppStorage(SettingsKeys.currencyOverride, store: .shared) private var currencyOverride = ""
+    @AppStorage(SettingsKeys.tipsEnabled, store: .shared) private var tipsEnabled = true
+
+    private var calendar: Calendar { .app }
+
+    /// Overtime-adjusted earnings per shift in the visible period.
+    private var earningsByShift: [PersistentIdentifier: Double] {
+        PayCalculator.earningsByShift(for: periodShifts, calendar: calendar)
+    }
 
     private var interval: DateInterval {
         calendar.dateInterval(of: period.component, for: referenceDate)
@@ -44,7 +59,7 @@ struct PayView: View {
     }
 
     private var totalEarnings: Double {
-        periodShifts.reduce(0) { $0 + $1.earnings }
+        earningsByShift.values.reduce(0, +)
     }
 
     private var totalTips: Double {
@@ -53,6 +68,7 @@ struct PayView: View {
 
     /// Earnings and hours per job in the period, highest earnings first.
     private var jobBreakdown: [(name: String, color: Color, hours: Double, earnings: Double)] {
+        let adjusted = earningsByShift
         let grouped = Dictionary(grouping: periodShifts) { $0.job?.name ?? String(localized: "No Job") }
         return grouped
             .map { name, shifts in
@@ -60,7 +76,7 @@ struct PayView: View {
                     name: name,
                     color: shifts.first?.job?.color ?? Color.gray,
                     hours: shifts.reduce(0) { $0 + $1.workedHours },
-                    earnings: shifts.reduce(0) { $0 + $1.earnings }
+                    earnings: shifts.reduce(0) { $0 + (adjusted[$1.persistentModelID] ?? $1.earnings) }
                 )
             }
             .sorted { $0.earnings > $1.earnings }
@@ -68,7 +84,8 @@ struct PayView: View {
 
     /// One chart entry per day per job, so bars stack by job color.
     private var dailyEarnings: [(id: String, day: Date, jobName: String, earnings: Double)] {
-        periodShifts
+        let adjusted = earningsByShift
+        return periodShifts
             .map { shift in
                 let day = calendar.startOfDay(for: shift.start)
                 let jobName = shift.job?.name ?? String(localized: "No Job")
@@ -76,7 +93,7 @@ struct PayView: View {
                     id: "\(day.timeIntervalSinceReferenceDate)-\(jobName)-\(shift.persistentModelID)",
                     day: day,
                     jobName: jobName,
-                    earnings: shift.earnings
+                    earnings: adjusted[shift.persistentModelID] ?? shift.earnings
                 )
             }
             .sorted { $0.day < $1.day }
@@ -141,9 +158,15 @@ struct PayView: View {
                     LabeledContent("Hours") {
                         Text(totalHours.formatted(.number.precision(.fractionLength(0...1))))
                     }
-                    if totalTips > 0 {
+                    if tipsEnabled, totalTips > 0 {
                         LabeledContent("Tips") {
                             Text(totalTips, format: .currency(code: Locale.currencyCode))
+                        }
+                    }
+                    if takeHomePercent > 0 {
+                        LabeledContent("Est. Take-Home") {
+                            Text(totalEarnings * (1 - takeHomePercent / 100),
+                                 format: .currency(code: Locale.currencyCode))
                         }
                     }
                     LabeledContent("Shifts", value: periodShifts.count, format: .number)

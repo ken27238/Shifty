@@ -6,14 +6,16 @@
 import SwiftUI
 import SwiftData
 
+// CloudKit sync requires every property to have a default value
+// and relationships to be optional.
 @Model
 final class Job {
-    var name: String
-    var hourlyRate: Double
-    var colorName: String
+    var name: String = ""
+    var hourlyRate: Double = 0
+    var colorName: String = "blue"
 
     @Relationship(deleteRule: .nullify, inverse: \Shift.job)
-    var shifts: [Shift] = []
+    var shifts: [Shift]? = []
 
     init(name: String, hourlyRate: Double, colorName: String = "blue") {
         self.name = name

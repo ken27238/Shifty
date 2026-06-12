@@ -15,69 +15,67 @@ struct JobsView: View {
     @State private var jobPendingDeletion: Job?
 
     var body: some View {
-        NavigationStack {
-            Group {
-                if jobs.isEmpty {
-                    ContentUnavailableView {
-                        Label("No Jobs", systemImage: "briefcase")
-                    } description: {
-                        Text("Add a job with an hourly rate so your shifts can calculate earnings.")
-                    } actions: {
-                        Button("Add Job") { isAddingJob = true }
-                            .buttonStyle(.borderedProminent)
-                    }
-                } else {
-                    List {
-                        ForEach(jobs) { job in
-                            Button {
-                                jobBeingEdited = job
-                            } label: {
-                                JobRow(job: job)
-                            }
-                            .buttonStyle(.plain)
-                            .swipeActions {
-                                Button("Delete", systemImage: "trash", role: .destructive) {
-                                    jobPendingDeletion = job
-                                }
+        Group {
+            if jobs.isEmpty {
+                ContentUnavailableView {
+                    Label("No Jobs", systemImage: "briefcase")
+                } description: {
+                    Text("Add a job with an hourly rate so your shifts can calculate earnings.")
+                } actions: {
+                    Button("Add Job") { isAddingJob = true }
+                        .buttonStyle(.borderedProminent)
+                }
+            } else {
+                List {
+                    ForEach(jobs) { job in
+                        Button {
+                            jobBeingEdited = job
+                        } label: {
+                            JobRow(job: job)
+                        }
+                        .buttonStyle(.plain)
+                        .swipeActions {
+                            Button("Delete", systemImage: "trash", role: .destructive) {
+                                jobPendingDeletion = job
                             }
                         }
                     }
                 }
             }
-            .navigationTitle("Jobs")
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button("Add Job", systemImage: "plus") {
-                        isAddingJob = true
-                    }
+        }
+        .navigationTitle("Jobs")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button("Add Job", systemImage: "plus") {
+                    isAddingJob = true
                 }
             }
-            .sheet(isPresented: $isAddingJob) {
-                JobFormView()
-            }
-            .sheet(item: $jobBeingEdited) { job in
-                JobFormView(job: job)
-            }
-            .confirmationDialog(
-                "Delete this job?",
-                isPresented: Binding(
-                    get: { jobPendingDeletion != nil },
-                    set: { if !$0 { jobPendingDeletion = nil } }
-                ),
-                titleVisibility: .visible,
-                presenting: jobPendingDeletion
-            ) { job in
-                Button("Delete \(job.name)", role: .destructive) {
-                    withAnimation {
-                        modelContext.delete(job)
-                    }
+        }
+        .sheet(isPresented: $isAddingJob) {
+            JobFormView()
+        }
+        .sheet(item: $jobBeingEdited) { job in
+            JobFormView(job: job)
+        }
+        .confirmationDialog(
+            "Delete this job?",
+            isPresented: Binding(
+                get: { jobPendingDeletion != nil },
+                set: { if !$0 { jobPendingDeletion = nil } }
+            ),
+            titleVisibility: .visible,
+            presenting: jobPendingDeletion
+        ) { job in
+            Button("Delete \(job.name)", role: .destructive) {
+                withAnimation {
+                    modelContext.delete(job)
                 }
-            } message: { job in
-                if job.shifts.isEmpty {
-                    Text("This can't be undone.")
-                } else {
-                    Text("Existing shifts will be kept but lose their job and earnings.")
-                }
+            }
+        } message: { job in
+            if (job.shifts ?? []).isEmpty {
+                Text("This can't be undone.")
+            } else {
+                Text("Existing shifts will be kept but lose their job and earnings.")
             }
         }
     }
@@ -204,6 +202,8 @@ struct JobFormView: View {
 }
 
 #Preview {
-    JobsView()
-        .modelContainer(for: [Shift.self, Job.self], inMemory: true)
+    NavigationStack {
+        JobsView()
+    }
+    .modelContainer(for: [Shift.self, Job.self], inMemory: true)
 }

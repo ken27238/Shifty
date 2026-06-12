@@ -6,6 +6,10 @@
 	objectVersion = 110;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		C0FFEE000000000000000E /* ShiftyWidgetsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C0FFEE0000000000000004 /* ShiftyWidgetsExtension.appex */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		BEE64BAA2FDB705100BAF334 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -21,13 +25,43 @@
 			remoteGlobalIDString = BEE64B992FDB704F00BAF334;
 			remoteInfo = Shifty;
 		};
+		C0FFEE000000000000000B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = BEE64B922FDB704F00BAF334 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C0FFEE0000000000000003;
+			remoteInfo = ShiftyWidgetsExtension;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		C0FFEE000000000000000D /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			dstPath = "";
+			dstSubfolder = PlugIns;
+			files = (
+				C0FFEE000000000000000E /* ShiftyWidgetsExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		BEE64B9A2FDB704F00BAF334 /* Shifty.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Shifty.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BEE64BA92FDB705100BAF334 /* ShiftyTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ShiftyTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		BEE64BB32FDB705100BAF334 /* ShiftyUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ShiftyUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		C0FFEE0000000000000004 /* ShiftyWidgetsExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShiftyWidgetsExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		C0FFEE000000000000000F /* Exceptions for "ShiftyWidgets" folder in "ShiftyWidgetsExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = C0FFEE0000000000000003 /* ShiftyWidgetsExtension */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		BEE64B9C2FDB704F00BAF334 /* Shifty */ = {
@@ -43,6 +77,19 @@
 		BEE64BB62FDB705100BAF334 /* ShiftyUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = ShiftyUITests;
+			sourceTree = "<group>";
+		};
+		C0FFEE0000000000000001 /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		C0FFEE0000000000000002 /* ShiftyWidgets */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				C0FFEE000000000000000F /* Exceptions for "ShiftyWidgets" folder in "ShiftyWidgetsExtension" target */,
+			);
+			path = ShiftyWidgets;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -63,6 +110,11 @@
 			files = (
 			);
 		};
+		C0FFEE0000000000000006 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -70,6 +122,8 @@
 			isa = PBXGroup;
 			children = (
 				BEE64B9C2FDB704F00BAF334 /* Shifty */,
+				C0FFEE0000000000000001 /* Shared */,
+				C0FFEE0000000000000002 /* ShiftyWidgets */,
 				BEE64BAC2FDB705100BAF334 /* ShiftyTests */,
 				BEE64BB62FDB705100BAF334 /* ShiftyUITests */,
 				BEE64B9B2FDB704F00BAF334 /* Products */,
@@ -82,6 +136,7 @@
 				BEE64B9A2FDB704F00BAF334 /* Shifty.app */,
 				BEE64BA92FDB705100BAF334 /* ShiftyTests.xctest */,
 				BEE64BB32FDB705100BAF334 /* ShiftyUITests.xctest */,
+				C0FFEE0000000000000004 /* ShiftyWidgetsExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -96,11 +151,16 @@
 				BEE64B962FDB704F00BAF334 /* Sources */,
 				BEE64B972FDB704F00BAF334 /* Frameworks */,
 				BEE64B982FDB704F00BAF334 /* Resources */,
+				C0FFEE000000000000000D /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
+			dependencies = (
+				C0FFEE000000000000000C /* PBXTargetDependency */,
+			);
 			fileSystemSynchronizedGroups = (
 				BEE64B9C2FDB704F00BAF334 /* Shifty */,
+				C0FFEE0000000000000001 /* Shared */,
 			);
 			name = Shifty;
 			productName = Shifty;
@@ -149,6 +209,25 @@
 			productReference = BEE64BB32FDB705100BAF334 /* ShiftyUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		C0FFEE0000000000000003 /* ShiftyWidgetsExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C0FFEE0000000000000008 /* Build configuration list for PBXNativeTarget "ShiftyWidgetsExtension" */;
+			buildPhases = (
+				C0FFEE0000000000000005 /* Sources */,
+				C0FFEE0000000000000006 /* Frameworks */,
+				C0FFEE0000000000000007 /* Resources */,
+			);
+			buildRules = (
+			);
+			fileSystemSynchronizedGroups = (
+				C0FFEE0000000000000001 /* Shared */,
+				C0FFEE0000000000000002 /* ShiftyWidgets */,
+			);
+			name = ShiftyWidgetsExtension;
+			productName = ShiftyWidgetsExtension;
+			productReference = C0FFEE0000000000000004 /* ShiftyWidgetsExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -189,6 +268,7 @@
 				BEE64B992FDB704F00BAF334 /* Shifty */,
 				BEE64BA82FDB705100BAF334 /* ShiftyTests */,
 				BEE64BB22FDB705100BAF334 /* ShiftyUITests */,
+				C0FFEE0000000000000003 /* ShiftyWidgetsExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -205,6 +285,11 @@
 			);
 		};
 		BEE64BB12FDB705100BAF334 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
+		C0FFEE0000000000000007 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			files = (
 			);
@@ -227,6 +312,11 @@
 			files = (
 			);
 		};
+		C0FFEE0000000000000005 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -239,6 +329,12 @@
 			isa = PBXTargetDependency;
 			target = BEE64B992FDB704F00BAF334 /* Shifty */;
 			targetProxy = BEE64BB42FDB705100BAF334 /* PBXContainerItemProxy */;
+		};
+		C0FFEE000000000000000C /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			platformFilter = ios;
+			target = C0FFEE0000000000000003 /* ShiftyWidgetsExtension */;
+			targetProxy = C0FFEE000000000000000B /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -364,6 +460,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Shifty/Shifty.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = QGL6NPQ9K5;
@@ -372,6 +469,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIBackgroundModes = "remote-notification";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -408,6 +506,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Shifty/Shifty.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = QGL6NPQ9K5;
@@ -416,6 +515,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIBackgroundModes = "remote-notification";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -549,6 +649,70 @@
 			};
 			name = Release;
 		};
+		C0FFEE0000000000000009 /* Debug configuration for PBXNativeTarget "ShiftyWidgetsExtension" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = ShiftyWidgets/ShiftyWidgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = QGL6NPQ9K5;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ShiftyWidgets/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Shifty;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = kseabury.Shifty.ShiftyWidgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		C0FFEE000000000000000A /* Release configuration for PBXNativeTarget "ShiftyWidgetsExtension" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = ShiftyWidgets/ShiftyWidgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = QGL6NPQ9K5;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ShiftyWidgets/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Shifty;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = kseabury.Shifty.ShiftyWidgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -581,6 +745,14 @@
 			buildConfigurations = (
 				BEE64BC22FDB705100BAF334 /* Debug configuration for PBXNativeTarget "ShiftyUITests" */,
 				BEE64BC32FDB705100BAF334 /* Release configuration for PBXNativeTarget "ShiftyUITests" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		C0FFEE0000000000000008 /* Build configuration list for PBXNativeTarget "ShiftyWidgetsExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C0FFEE0000000000000009 /* Debug configuration for PBXNativeTarget "ShiftyWidgetsExtension" */,
+				C0FFEE000000000000000A /* Release configuration for PBXNativeTarget "ShiftyWidgetsExtension" */,
 			);
 			defaultConfigurationName = Release;
 		};

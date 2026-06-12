@@ -11,11 +11,41 @@ enum AppTab: Hashable {
     case shifts
     case calendar
     case pay
-    case jobs
+    case settings
 }
 
 struct ContentView: View {
     @State private var selectedTab: AppTab = .home
+
+    @Query(sort: \Shift.start) private var shifts: [Shift]
+    @AppStorage("remindersEnabled") private var remindersEnabled = false
+    @AppStorage("reminderLeadMinutes") private var reminderLeadMinutes = 60
+    @AppStorage(SettingsKeys.appearance, store: .shared) private var appearance = "system"
+    @AppStorage(SettingsKeys.accentColorName, store: .shared) private var accentColorName = ""
+
+    private var colorScheme: ColorScheme? {
+        switch appearance {
+        case "light": .light
+        case "dark": .dark
+        default: nil
+        }
+    }
+
+    private var upcomingShifts: [Shift] {
+        shifts.filter { $0.start > .now }
+    }
+
+    /// Re-syncs reminders whenever shifts or reminder settings change.
+    private var reminderSyncKey: Int {
+        var hasher = Hasher()
+        hasher.combine(remindersEnabled)
+        hasher.combine(reminderLeadMinutes)
+        for shift in upcomingShifts {
+            hasher.combine(shift.start)
+            hasher.combine(shift.job?.name)
+        }
+        return hasher.finalize()
+    }
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -31,11 +61,20 @@ struct ContentView: View {
             Tab("Pay", systemImage: "banknote", value: .pay) {
                 PayView()
             }
-            Tab("Jobs", systemImage: "briefcase", value: .jobs) {
-                JobsView()
+            Tab("Settings", systemImage: "gear", value: .settings) {
+                SettingsView()
             }
         }
         .tabViewStyle(.sidebarAdaptable)
+        .preferredColorScheme(colorScheme)
+        .tint(accentColorName.isEmpty ? nil : Job.palette[accentColorName])
+        .task(id: reminderSyncKey) {
+            await ReminderScheduler.sync(
+                upcomingShifts: upcomingShifts,
+                enabled: remindersEnabled,
+                leadMinutes: reminderLeadMinutes
+            )
+        }
     }
 }
 

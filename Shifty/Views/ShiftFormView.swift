@@ -14,21 +14,34 @@ struct ShiftFormView: View {
 
     private let existingShift: Shift?
 
+    @AppStorage(SettingsKeys.tipsEnabled, store: .shared) private var tipsEnabled = true
+
     @State private var start: Date
     @State private var end: Date
     @State private var breakMinutes: Int
     @State private var tips: Double
     @State private var notes: String
     @State private var job: Job?
+    @State private var didApplyDefaultJob = false
 
-    init(shift: Shift? = nil, defaultStart: Date? = nil) {
+    /// New shifts start on `defaultDay` (today if nil) using the user's
+    /// default start time, duration, and break from Settings.
+    init(shift: Shift? = nil, defaultDay: Date? = nil) {
         existingShift = shift
-        let defaultStart = defaultStart ?? Calendar.current.date(
-            bySettingHour: 9, minute: 0, second: 0, of: .now
-        ) ?? .now
+
+        let defaults = UserDefaults.shared
+        let startMinutes = defaults.integer(forKey: SettingsKeys.defaultStartMinutes)
+        let durationHours = defaults.double(forKey: SettingsKeys.defaultDurationHours)
+        let defaultStart = Calendar.app.date(
+            bySettingHour: startMinutes / 60,
+            minute: startMinutes % 60,
+            second: 0,
+            of: defaultDay ?? .now
+        ) ?? defaultDay ?? .now
+
         _start = State(initialValue: shift?.start ?? defaultStart)
-        _end = State(initialValue: shift?.end ?? defaultStart.addingTimeInterval(8 * 3600))
-        _breakMinutes = State(initialValue: shift?.breakMinutes ?? 0)
+        _end = State(initialValue: shift?.end ?? defaultStart.addingTimeInterval(durationHours * 3600))
+        _breakMinutes = State(initialValue: shift?.breakMinutes ?? defaults.integer(forKey: SettingsKeys.defaultBreakMinutes))
         _tips = State(initialValue: shift?.tips ?? 0)
         _notes = State(initialValue: shift?.notes ?? "")
         _job = State(initialValue: shift?.job)
@@ -58,7 +71,7 @@ struct ShiftFormView: View {
                     }
                 } footer: {
                     if jobs.isEmpty {
-                        Text("Add a job in the Jobs tab to track earnings automatically.")
+                        Text("Add a job in Settings to track earnings automatically.")
                     }
                 }
 
@@ -73,17 +86,19 @@ struct ShiftFormView: View {
                 }
 
                 Section("Extras") {
-                    LabeledContent("Tips") {
-                        TextField(
-                            "Tips",
-                            value: $tips,
-                            format: .currency(code: Locale.currencyCode)
-                        )
-                        .multilineTextAlignment(.trailing)
-                        .labelsHidden()
-                        #if os(iOS)
-                        .keyboardType(.decimalPad)
-                        #endif
+                    if tipsEnabled {
+                        LabeledContent("Tips") {
+                            TextField(
+                                "Tips",
+                                value: $tips,
+                                format: .currency(code: Locale.currencyCode)
+                            )
+                            .multilineTextAlignment(.trailing)
+                            .labelsHidden()
+                            #if os(iOS)
+                            .keyboardType(.decimalPad)
+                            #endif
+                        }
                     }
                     TextField("Notes", text: $notes, axis: .vertical)
                 }
@@ -95,6 +110,15 @@ struct ShiftFormView: View {
                     LabeledContent("Earnings") {
                         Text(earnings, format: .currency(code: Locale.currencyCode))
                     }
+                }
+            }
+            .task {
+                // Pre-select the default job from Settings for new shifts.
+                guard !didApplyDefaultJob, existingShift == nil, job == nil else { return }
+                didApplyDefaultJob = true
+                let defaultName = UserDefaults.shared.string(forKey: SettingsKeys.defaultJobName) ?? ""
+                if !defaultName.isEmpty {
+                    job = jobs.first { $0.name == defaultName }
                 }
             }
             .navigationTitle(existingShift == nil ? "New Shift" : "Edit Shift")
@@ -132,6 +156,7 @@ struct ShiftFormView: View {
             )
             modelContext.insert(shift)
         }
+        refreshWidgets()
         dismiss()
     }
 }

@@ -13,7 +13,10 @@ struct ShiftsView: View {
     @State private var isAddingShift = false
     @State private var shiftBeingEdited: Shift?
 
-    private var calendar: Calendar { .current }
+    // Declared so the view refreshes when the week-start setting changes.
+    @AppStorage(SettingsKeys.weekStartDay, store: .shared) private var weekStartDay = 0
+
+    private var calendar: Calendar { .app }
 
     /// Shifts grouped by the start of their week, newest week first.
     private var weeks: [(weekStart: Date, shifts: [Shift])] {
@@ -82,6 +85,7 @@ struct ShiftsView: View {
                 modelContext.delete(weekShifts[index])
             }
         }
+        refreshWidgets()
     }
 }
 
@@ -90,7 +94,7 @@ private struct WeekHeader: View {
     let shifts: [Shift]
 
     private var title: String {
-        let calendar = Calendar.current
+        let calendar = Calendar.app
         if calendar.isDate(weekStart, equalTo: .now, toGranularity: .weekOfYear) {
             return String(localized: "This Week")
         }

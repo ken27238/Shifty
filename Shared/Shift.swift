@@ -6,14 +6,16 @@
 import Foundation
 import SwiftData
 
+// CloudKit sync requires every property to have a default value
+// and relationships to be optional.
 @Model
 final class Shift {
-    var start: Date
-    var end: Date
+    var start: Date = Date.now
+    var end: Date = Date.now
     /// Unpaid break, subtracted from worked time.
-    var breakMinutes: Int
-    var tips: Double
-    var notes: String
+    var breakMinutes: Int = 0
+    var tips: Double = 0
+    var notes: String = ""
     var job: Job?
 
     init(
@@ -40,14 +42,19 @@ final class Shift {
         workedDuration / 3600
     }
 
+    /// Base earnings without overtime rules; use PayCalculator for adjusted totals.
     var earnings: Double {
         workedHours * (job?.hourlyRate ?? 0) + tips
     }
 }
 
 extension Locale {
-    /// The user's currency, falling back to USD when the locale has none.
+    /// The currency for money formatting: the user's override, or the locale's.
     static var currencyCode: String {
-        Locale.current.currency?.identifier ?? "USD"
+        if let override = UserDefaults.shared.string(forKey: SettingsKeys.currencyOverride),
+           !override.isEmpty {
+            return override
+        }
+        return Locale.current.currency?.identifier ?? "USD"
     }
 }

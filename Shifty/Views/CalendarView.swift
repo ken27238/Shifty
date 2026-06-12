@@ -16,7 +16,10 @@ struct CalendarView: View {
     @State private var isAddingShift = false
     @State private var shiftBeingEdited: Shift?
 
-    private var calendar: Calendar { .current }
+    // Declared so the view refreshes when the week-start setting changes.
+    @AppStorage(SettingsKeys.weekStartDay, store: .shared) private var weekStartDay = 0
+
+    private var calendar: Calendar { .app }
 
     private var shiftsByDay: [Date: [Shift]] {
         Dictionary(grouping: shifts) { calendar.startOfDay(for: $0.start) }
@@ -80,6 +83,7 @@ struct CalendarView: View {
                                     modelContext.delete(selectedDayShifts[index])
                                 }
                             }
+                            refreshWidgets()
                         }
                     }
                 } header: {
@@ -100,7 +104,7 @@ struct CalendarView: View {
                 }
             }
             .sheet(isPresented: $isAddingShift) {
-                ShiftFormView(defaultStart: defaultStartForSelectedDay)
+                ShiftFormView(defaultDay: selectedDay)
             }
             .sheet(item: $shiftBeingEdited) { shift in
                 ShiftFormView(shift: shift)
@@ -146,10 +150,6 @@ struct CalendarView: View {
                 }
             }
         }
-    }
-
-    private var defaultStartForSelectedDay: Date {
-        calendar.date(bySettingHour: 9, minute: 0, second: 0, of: selectedDay) ?? selectedDay
     }
 
     private func stepMonth(by value: Int) {
