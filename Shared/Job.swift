@@ -5,6 +5,7 @@
 
 import SwiftUI
 import SwiftData
+import CoreLocation
 
 // CloudKit sync requires every property to have a default value
 // and relationships to be optional.
@@ -13,6 +14,10 @@ final class Job {
     var name: String = ""
     var hourlyRate: Double = 0
     var colorName: String = "blue"
+    /// Workplace location, shown on the Home map for upcoming shifts.
+    var locationName: String = ""
+    var latitude: Double?
+    var longitude: Double?
 
     @Relationship(deleteRule: .nullify, inverse: \Shift.job)
     var shifts: [Shift]? = []
@@ -25,6 +30,11 @@ final class Job {
 
     var color: Color {
         Job.palette[colorName] ?? .accentColor
+    }
+
+    var coordinate: CLLocationCoordinate2D? {
+        guard let latitude, let longitude else { return nil }
+        return CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
     }
 
     /// System colors only, so they adapt to light/dark mode automatically.

@@ -63,6 +63,10 @@ struct ShiftRow: View {
                         Image(systemName: "note.text")
                             .accessibilityLabel("Has notes")
                     }
+                    if shift.coordinate != nil {
+                        Image(systemName: "mappin")
+                            .accessibilityLabel("Has a custom location")
+                    }
                     if shift.tips > 0 {
                         Image(systemName: "banknote")
                             .accessibilityLabel("Has tips")

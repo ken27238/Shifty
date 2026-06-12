@@ -22,6 +22,10 @@ struct ShiftFormView: View {
     @State private var tips: Double
     @State private var notes: String
     @State private var job: Job?
+    @State private var locationName: String
+    @State private var latitude: Double?
+    @State private var longitude: Double?
+    @State private var isPickingLocation = false
     @State private var didApplyDefaultJob = false
 
     /// New shifts start on `defaultDay` (today if nil) using the user's
@@ -45,6 +49,9 @@ struct ShiftFormView: View {
         _tips = State(initialValue: shift?.tips ?? 0)
         _notes = State(initialValue: shift?.notes ?? "")
         _job = State(initialValue: shift?.job)
+        _locationName = State(initialValue: shift?.locationName ?? "")
+        _latitude = State(initialValue: shift?.latitude)
+        _longitude = State(initialValue: shift?.longitude)
     }
 
     private var workedDuration: TimeInterval {
@@ -104,6 +111,33 @@ struct ShiftFormView: View {
                 }
 
                 Section {
+                    if latitude != nil {
+                        Label(locationName.isEmpty ? String(localized: "Custom Location") : locationName,
+                              systemImage: "mappin.and.ellipse")
+                        Button("Change Location") { isPickingLocation = true }
+                        Button("Use Job Location", role: .destructive) {
+                            locationName = ""
+                            latitude = nil
+                            longitude = nil
+                        }
+                    } else {
+                        Button("Set Custom Location", systemImage: "mappin.and.ellipse") {
+                            isPickingLocation = true
+                        }
+                    }
+                } header: {
+                    Text("Location")
+                } footer: {
+                    if latitude == nil {
+                        if let jobLocation = job?.locationName, !jobLocation.isEmpty {
+                            Text("Uses the job's location: \(jobLocation).")
+                        } else {
+                            Text("Defaults to the job's location when one is set.")
+                        }
+                    }
+                }
+
+                Section {
                     LabeledContent("Worked") {
                         Text(Duration.seconds(workedDuration), format: .units(allowed: [.hours, .minutes], width: .abbreviated))
                     }
@@ -134,19 +168,22 @@ struct ShiftFormView: View {
                         .disabled(!isValid)
                 }
             }
+            .sheet(isPresented: $isPickingLocation) {
+                LocationPickerView { name, coordinate in
+                    locationName = name
+                    latitude = coordinate.latitude
+                    longitude = coordinate.longitude
+                }
+            }
         }
     }
 
     private func save() {
-        if let shift = existingShift {
-            shift.start = start
-            shift.end = end
-            shift.breakMinutes = breakMinutes
-            shift.tips = tips
-            shift.notes = notes
-            shift.job = job
+        let shift: Shift
+        if let existingShift {
+            shift = existingShift
         } else {
-            let shift = Shift(
+            shift = Shift(
                 start: start,
                 end: end,
                 breakMinutes: breakMinutes,
@@ -156,6 +193,15 @@ struct ShiftFormView: View {
             )
             modelContext.insert(shift)
         }
+        shift.start = start
+        shift.end = end
+        shift.breakMinutes = breakMinutes
+        shift.tips = tips
+        shift.notes = notes
+        shift.job = job
+        shift.locationName = locationName
+        shift.latitude = latitude
+        shift.longitude = longitude
         refreshWidgets()
         dismiss()
     }

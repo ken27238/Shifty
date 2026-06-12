@@ -5,9 +5,13 @@
 
 import SwiftUI
 import SwiftData
+import MapKit
+import CoreLocation
 
 struct HomeView: View {
     @Binding var selectedTab: AppTab
+    /// Set externally (⌘N) to open the new-shift form; consumed on arrival.
+    @Binding var addShiftRequest: Bool
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Shift.start, order: .reverse) private var shifts: [Shift]
     @Query(sort: \Job.name) private var jobs: [Job]
@@ -19,6 +23,7 @@ struct HomeView: View {
     @AppStorage(SettingsKeys.weekStartDay, store: .shared) private var weekStartDay = 0
     @AppStorage(SettingsKeys.overtimeEnabled, store: .shared) private var overtimeEnabled = false
     @AppStorage(SettingsKeys.currencyOverride, store: .shared) private var currencyOverride = ""
+    @AppStorage(SettingsKeys.weeklyGoal, store: .shared) private var weeklyGoal = 0.0
 
     private var calendar: Calendar { .app }
 
@@ -105,7 +110,15 @@ struct HomeView: View {
             .sheet(item: $shiftBeingEdited) { shift in
                 ShiftFormView(shift: shift)
             }
+            .onAppear { applyAddShiftRequest() }
+            .onChange(of: addShiftRequest) { _, _ in applyAddShiftRequest() }
         }
+    }
+
+    private func applyAddShiftRequest() {
+        guard addShiftRequest else { return }
+        addShiftRequest = false
+        isAddingShift = true
     }
 
     private var welcome: some View {
@@ -149,6 +162,8 @@ struct HomeView: View {
             }
             .padding(.horizontal)
             .padding(.bottom)
+            .frame(maxWidth: 700)
+            .frame(maxWidth: .infinity)
         }
     }
 
@@ -173,6 +188,7 @@ struct HomeView: View {
                 Text("Ends at \(shift.end.formatted(date: .omitted, time: .shortened)) · ≈ \(shift.earnings.formatted(.currency(code: Locale.currencyCode).precision(.fractionLength(0))))")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
+                LocationSnippet(shift: shift)
             }
         } else if let shift = nextShift {
             HeroCard(
@@ -195,6 +211,7 @@ struct HomeView: View {
                 }
                 .font(.footnote)
                 .foregroundStyle(.secondary)
+                LocationSnippet(shift: shift)
             }
         } else {
             VStack(alignment: .leading, spacing: 4) {
@@ -282,7 +299,16 @@ struct HomeView: View {
                 }
             }
 
-            if hasFutureShiftsThisWeek {
+            if weeklyGoal > 0 {
+                // A goal gives the bar meaning even with nothing scheduled.
+                ProgressView(
+                    value: min(weekEarningsSoFar, weeklyGoal),
+                    total: max(weeklyGoal, 0.01)
+                )
+                Text("\(weekEarningsSoFar.formatted(.currency(code: Locale.currencyCode).precision(.fractionLength(0)))) of \(weeklyGoal.formatted(.currency(code: Locale.currencyCode).precision(.fractionLength(0)))) goal · \(totalsFootnote(month: monthShifts, year: yearShifts))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else if hasFutureShiftsThisWeek {
                 ProgressView(
                     value: min(weekHoursWorked, projectedWeekHours),
                     total: max(projectedWeekHours, 0.01)
@@ -365,6 +391,7 @@ struct HomeView: View {
                         compactRow(shift, trailing: trailing)
                     }
                     .buttonStyle(.plain)
+                    .padHoverEffect()
                     .contextMenu {
                         Button("Repeat Today", systemImage: "arrow.counterclockwise") {
                             repeatShift(shift, daysFromToday: 0)
@@ -441,10 +468,69 @@ struct HomeView: View {
             notes: shift.notes,
             job: shift.job
         )
+        newShift.locationName = shift.locationName
+        newShift.latitude = shift.latitude
+        newShift.longitude = shift.longitude
         withAnimation {
             modelContext.insert(newShift)
         }
         refreshWidgets()
+    }
+}
+
+/// A static map of where the shift happens — its own location if set,
+/// otherwise the job's — with a directions shortcut.
+private struct LocationSnippet: View {
+    let shift: Shift
+
+    var body: some View {
+        if let coordinate = shift.resolvedCoordinate {
+            VStack(alignment: .leading, spacing: 6) {
+                Map(
+                    initialPosition: .region(MKCoordinateRegion(
+                        center: coordinate,
+                        latitudinalMeters: 900,
+                        longitudinalMeters: 900
+                    )),
+                    interactionModes: []
+                ) {
+                    Marker(shift.job?.name ?? String(localized: "Shift"), coordinate: coordinate)
+                        .tint(shift.job?.color ?? .red)
+                }
+                .frame(height: 120)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+
+                HStack {
+                    if !shift.resolvedLocationName.isEmpty {
+                        Label(shift.resolvedLocationName, systemImage: "mappin.and.ellipse")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    Spacer()
+                    Button {
+                        openInMaps(coordinate: coordinate)
+                    } label: {
+                        Label("Directions", systemImage: "arrow.triangle.turn.up.right.circle")
+                            .font(.footnote.weight(.medium))
+                    }
+                    .buttonStyle(.borderless)
+                }
+            }
+            .padding(.top, 4)
+        }
+    }
+
+    private func openInMaps(coordinate: CLLocationCoordinate2D) {
+        let placemark = MKPlacemark(coordinate: coordinate)
+        let item = MKMapItem(placemark: placemark)
+        let name = shift.resolvedLocationName
+        item.name = name.isEmpty ? (shift.job?.name ?? String(localized: "Shift")) : name
+        item.openInMaps(launchOptions: [
+            MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeDefault,
+        ])
     }
 }
 
@@ -470,12 +556,13 @@ private struct HeroCard<Content: View>: View {
             .contentShape(RoundedRectangle(cornerRadius: 16))
         }
         .buttonStyle(.plain)
+        .padHoverEffect()
         .accessibilityElement(children: .combine)
         .accessibilityHint("Edits this shift")
     }
 }
 
 #Preview {
-    HomeView(selectedTab: .constant(.home))
+    HomeView(selectedTab: .constant(.home), addShiftRequest: .constant(false))
         .modelContainer(for: [Shift.self, Job.self], inMemory: true)
 }

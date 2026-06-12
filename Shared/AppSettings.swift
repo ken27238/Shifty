@@ -20,6 +20,9 @@ nonisolated enum SettingsKeys {
     static let tipsEnabled = "tipsEnabled"
 
     // Pay
+    static let payCycle = "payCycle"                         // weekly | biweekly | semimonthly | monthly
+    static let payAnchor = "payAnchor"                       // a known payday (period start), for biweekly
+    static let weeklyGoal = "weeklyGoal"                     // earnings goal per week, 0 = off
     static let overtimeEnabled = "overtimeEnabled"
     static let overtimeWeekly = "overtimeWeekly"             // true: per week, false: per day
     static let overtimeThreshold = "overtimeThreshold"
@@ -46,6 +49,7 @@ nonisolated enum AppSettings {
             SettingsKeys.overtimeThreshold: 40.0,
             SettingsKeys.overtimeMultiplier: 1.5,
             SettingsKeys.iCloudSyncEnabled: true,
+            SettingsKeys.payCycle: "weekly",
         ])
     }
 }

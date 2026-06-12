@@ -5,6 +5,7 @@
 
 import Foundation
 import SwiftData
+import CoreLocation
 
 // CloudKit sync requires every property to have a default value
 // and relationships to be optional.
@@ -16,6 +17,10 @@ final class Shift {
     var breakMinutes: Int = 0
     var tips: Double = 0
     var notes: String = ""
+    /// Optional override of the job's location for this one shift.
+    var locationName: String = ""
+    var latitude: Double?
+    var longitude: Double?
     var job: Job?
 
     init(
@@ -45,6 +50,20 @@ final class Shift {
     /// Base earnings without overtime rules; use PayCalculator for adjusted totals.
     var earnings: Double {
         workedHours * (job?.hourlyRate ?? 0) + tips
+    }
+
+    var coordinate: CLLocationCoordinate2D? {
+        guard let latitude, let longitude else { return nil }
+        return CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+    }
+
+    /// The shift's own location when set, otherwise the job's.
+    var resolvedCoordinate: CLLocationCoordinate2D? {
+        coordinate ?? job?.coordinate
+    }
+
+    var resolvedLocationName: String {
+        locationName.isEmpty ? (job?.locationName ?? "") : locationName
     }
 }
 

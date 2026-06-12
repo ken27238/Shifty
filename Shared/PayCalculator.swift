@@ -66,3 +66,65 @@ enum PayCalculator {
         earningsByShift(for: shifts, rules: rules, calendar: calendar).values.reduce(0, +)
     }
 }
+
+/// How often the user gets paid; drives the Pay tab's pay-period mode
+/// and the payday countdown.
+nonisolated enum PayCycle: String {
+    case weekly
+    case biweekly
+    case semimonthly
+    case monthly
+
+    static func load(from defaults: UserDefaults = .shared) -> PayCycle {
+        PayCycle(rawValue: defaults.string(forKey: SettingsKeys.payCycle) ?? "") ?? .weekly
+    }
+}
+
+nonisolated enum PayPeriods {
+    /// The biweekly anchor: a payday the user told us about, or a fixed
+    /// deterministic Monday (Jan 1, 2001) until they set one.
+    static func anchor(from defaults: UserDefaults = .shared, calendar: Calendar) -> Date {
+        let timestamp = defaults.double(forKey: SettingsKeys.payAnchor)
+        let date = timestamp > 0
+            ? Date(timeIntervalSinceReferenceDate: timestamp)
+            : Date(timeIntervalSinceReferenceDate: 0)
+        return calendar.startOfDay(for: date)
+    }
+
+    static func interval(
+        containing date: Date,
+        cycle: PayCycle,
+        calendar: Calendar = .app,
+        defaults: UserDefaults = .shared
+    ) -> DateInterval {
+        let fallback = DateInterval(start: calendar.startOfDay(for: date), duration: 86_400)
+        switch cycle {
+        case .weekly:
+            return calendar.dateInterval(of: .weekOfYear, for: date) ?? fallback
+        case .monthly:
+            return calendar.dateInterval(of: .month, for: date) ?? fallback
+        case .biweekly:
+            let anchor = anchor(from: defaults, calendar: calendar)
+            let days = calendar.dateComponents(
+                [.day], from: anchor, to: calendar.startOfDay(for: date)
+            ).day ?? 0
+            let periodIndex = Int(floor(Double(days) / 14))
+            guard let start = calendar.date(byAdding: .day, value: periodIndex * 14, to: anchor),
+                  let end = calendar.date(byAdding: .day, value: 14, to: start)
+            else { return fallback }
+            return DateInterval(start: start, end: end)
+        case .semimonthly:
+            // First half: 1st–15th; second half: 16th–end of month.
+            let components = calendar.dateComponents([.year, .month, .day], from: date)
+            guard let day = components.day,
+                  let month = calendar.dateInterval(of: .month, for: date)
+            else { return fallback }
+            guard let mid = calendar.date(from: DateComponents(
+                year: components.year, month: components.month, day: 16
+            )) else { return fallback }
+            return day <= 15
+                ? DateInterval(start: month.start, end: mid)
+                : DateInterval(start: mid, end: month.end)
+        }
+    }
+}

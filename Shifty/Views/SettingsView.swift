@@ -20,6 +20,9 @@ struct SettingsView: View {
     @AppStorage(SettingsKeys.tipsEnabled, store: .shared) private var tipsEnabled = true
 
     // Pay
+    @AppStorage(SettingsKeys.payCycle, store: .shared) private var payCycle = "weekly"
+    @AppStorage(SettingsKeys.payAnchor, store: .shared) private var payAnchor = 0.0
+    @AppStorage(SettingsKeys.weeklyGoal, store: .shared) private var weeklyGoal = 0.0
     @AppStorage(SettingsKeys.overtimeEnabled, store: .shared) private var overtimeEnabled = false
     @AppStorage(SettingsKeys.overtimeWeekly, store: .shared) private var overtimeWeekly = true
     @AppStorage(SettingsKeys.overtimeThreshold, store: .shared) private var overtimeThreshold = 40.0
@@ -137,8 +140,44 @@ struct SettingsView: View {
         }
     }
 
+    private var anchorPayday: Binding<Date> {
+        Binding(
+            get: {
+                payAnchor > 0 ? Date(timeIntervalSinceReferenceDate: payAnchor) : .now
+            },
+            set: { date in
+                payAnchor = Calendar.app.startOfDay(for: date).timeIntervalSinceReferenceDate
+            }
+        )
+    }
+
     private var paySection: some View {
         Section {
+            Picker("Pay Cycle", selection: $payCycle) {
+                Text("Weekly").tag("weekly")
+                Text("Every 2 Weeks").tag("biweekly")
+                Text("Twice a Month").tag("semimonthly")
+                Text("Monthly").tag("monthly")
+            }
+            if payCycle == "biweekly" {
+                DatePicker(
+                    "A Recent Payday",
+                    selection: anchorPayday,
+                    displayedComponents: .date
+                )
+            }
+            LabeledContent("Weekly Goal") {
+                TextField(
+                    "Weekly Goal",
+                    value: $weeklyGoal,
+                    format: .currency(code: Locale.currencyCode)
+                )
+                .multilineTextAlignment(.trailing)
+                .labelsHidden()
+                #if os(iOS)
+                .keyboardType(.decimalPad)
+                #endif
+            }
             Toggle("Overtime Pay", isOn: $overtimeEnabled)
             if overtimeEnabled {
                 Picker("Counted Per", selection: $overtimeWeekly) {
@@ -179,7 +218,7 @@ struct SettingsView: View {
         } header: {
             Text("Pay")
         } footer: {
-            Text("Overtime applies the higher rate to hours past the threshold. Deductions show an estimated take-home amount in the Pay tab.")
+            Text("The pay cycle drives the Pay tab's pay-period mode and payday countdown. For Every 2 Weeks, set any payday so periods line up. A weekly goal (\(0.formatted(.currency(code: Locale.currencyCode).precision(.fractionLength(0)))) = off) shows progress on Home and in Pay.")
         }
     }
 
@@ -241,7 +280,7 @@ struct SettingsView: View {
     private var dataSection: some View {
         Section("Data") {
             Button("Export Shifts as CSV", systemImage: "square.and.arrow.up") {
-                csvDocument = CSVDocument(text: makeCSV())
+                csvDocument = CSVDocument(text: CSVDocument.csv(for: allShifts))
                 isExportingCSV = true
             }
             .disabled(allShifts.isEmpty)
@@ -259,31 +298,6 @@ struct SettingsView: View {
     }
 
     // MARK: Actions
-
-    private func makeCSV() -> String {
-        func field(_ value: String) -> String {
-            "\"\(value.replacingOccurrences(of: "\"", with: "\"\""))\""
-        }
-
-        var lines = ["Date,Start,End,Break (min),Hours,Job,Hourly Rate,Tips,Earnings,Notes"]
-        let adjusted = PayCalculator.earningsByShift(for: allShifts)
-        for shift in allShifts {
-            lines.append([
-                field(shift.start.formatted(date: .numeric, time: .omitted)),
-                field(shift.start.formatted(date: .omitted, time: .shortened)),
-                field(shift.end.formatted(date: .omitted, time: .shortened)),
-                "\(shift.breakMinutes)",
-                shift.workedHours.formatted(.number.precision(.fractionLength(0...2))),
-                field(shift.job?.name ?? ""),
-                (shift.job?.hourlyRate ?? 0).formatted(.number.precision(.fractionLength(0...2))),
-                shift.tips.formatted(.number.precision(.fractionLength(0...2))),
-                (adjusted[shift.persistentModelID] ?? shift.earnings)
-                    .formatted(.number.precision(.fractionLength(0...2))),
-                field(shift.notes),
-            ].joined(separator: ","))
-        }
-        return lines.joined(separator: "\n")
-    }
 
     private func deleteAllData() {
         withAnimation {
@@ -313,6 +327,32 @@ nonisolated struct CSVDocument: FileDocument {
 
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
         FileWrapper(regularFileWithContents: Data(text.utf8))
+    }
+
+    @MainActor
+    static func csv(for shifts: [Shift]) -> String {
+        func field(_ value: String) -> String {
+            "\"\(value.replacingOccurrences(of: "\"", with: "\"\""))\""
+        }
+
+        var lines = ["Date,Start,End,Break (min),Hours,Job,Hourly Rate,Tips,Earnings,Notes"]
+        let adjusted = PayCalculator.earningsByShift(for: shifts)
+        for shift in shifts {
+            lines.append([
+                field(shift.start.formatted(date: .numeric, time: .omitted)),
+                field(shift.start.formatted(date: .omitted, time: .shortened)),
+                field(shift.end.formatted(date: .omitted, time: .shortened)),
+                "\(shift.breakMinutes)",
+                shift.workedHours.formatted(.number.precision(.fractionLength(0...2))),
+                field(shift.job?.name ?? ""),
+                (shift.job?.hourlyRate ?? 0).formatted(.number.precision(.fractionLength(0...2))),
+                shift.tips.formatted(.number.precision(.fractionLength(0...2))),
+                (adjusted[shift.persistentModelID] ?? shift.earnings)
+                    .formatted(.number.precision(.fractionLength(0...2))),
+                field(shift.notes),
+            ].joined(separator: ","))
+        }
+        return lines.joined(separator: "\n")
     }
 }
 

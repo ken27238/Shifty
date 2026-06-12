@@ -114,12 +114,19 @@ struct JobFormView: View {
     @State private var name: String
     @State private var hourlyRate: Double
     @State private var colorName: String
+    @State private var locationName: String
+    @State private var latitude: Double?
+    @State private var longitude: Double?
+    @State private var isPickingLocation = false
 
     init(job: Job? = nil) {
         existingJob = job
         _name = State(initialValue: job?.name ?? "")
         _hourlyRate = State(initialValue: job?.hourlyRate ?? 0)
         _colorName = State(initialValue: job?.colorName ?? "blue")
+        _locationName = State(initialValue: job?.locationName ?? "")
+        _latitude = State(initialValue: job?.latitude)
+        _longitude = State(initialValue: job?.longitude)
     }
 
     private var isValid: Bool {
@@ -143,6 +150,27 @@ struct JobFormView: View {
                         .keyboardType(.decimalPad)
                         #endif
                     }
+                }
+
+                Section {
+                    if latitude != nil {
+                        Label(locationName.isEmpty ? String(localized: "Location Set") : locationName,
+                              systemImage: "mappin.and.ellipse")
+                        Button("Change Location") { isPickingLocation = true }
+                        Button("Remove Location", role: .destructive) {
+                            locationName = ""
+                            latitude = nil
+                            longitude = nil
+                        }
+                    } else {
+                        Button("Set Location", systemImage: "mappin.and.ellipse") {
+                            isPickingLocation = true
+                        }
+                    }
+                } header: {
+                    Text("Location")
+                } footer: {
+                    Text("Shown on a map with your upcoming shift on the Home tab.")
                 }
 
                 Section("Color") {
@@ -185,18 +213,30 @@ struct JobFormView: View {
                         .disabled(!isValid)
                 }
             }
+            .sheet(isPresented: $isPickingLocation) {
+                LocationPickerView { name, coordinate in
+                    locationName = name
+                    latitude = coordinate.latitude
+                    longitude = coordinate.longitude
+                }
+            }
         }
     }
 
     private func save() {
-        if let job = existingJob {
-            job.name = name
-            job.hourlyRate = hourlyRate
-            job.colorName = colorName
+        let job: Job
+        if let existingJob {
+            job = existingJob
         } else {
-            let job = Job(name: name, hourlyRate: hourlyRate, colorName: colorName)
+            job = Job(name: name, hourlyRate: hourlyRate, colorName: colorName)
             modelContext.insert(job)
         }
+        job.name = name
+        job.hourlyRate = hourlyRate
+        job.colorName = colorName
+        job.locationName = locationName
+        job.latitude = latitude
+        job.longitude = longitude
         dismiss()
     }
 }

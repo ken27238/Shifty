@@ -25,6 +25,9 @@ private struct ShiftTemplate {
     var duration: TimeInterval
     var breakMinutes: Int
     var notes: String
+    var locationName: String
+    var latitude: Double?
+    var longitude: Double?
     var job: Job?
 
     init(shift: Shift) {
@@ -34,14 +37,18 @@ private struct ShiftTemplate {
         duration = shift.end.timeIntervalSince(shift.start)
         breakMinutes = shift.breakMinutes
         notes = shift.notes
+        locationName = shift.locationName
+        latitude = shift.latitude
+        longitude = shift.longitude
         job = shift.job
     }
 }
 
 struct CalendarView: View {
     private enum ViewMode: String, CaseIterable, Identifiable {
-        case month = "Month"
         case week = "Week"
+        case month = "Month"
+        case year = "Year"
         var id: Self { self }
     }
 
@@ -52,6 +59,8 @@ struct CalendarView: View {
         Calendar.app.dateInterval(of: .month, for: .now)?.start ?? .now
     @State private var displayedWeek: Date =
         Calendar.app.dateInterval(of: .weekOfYear, for: .now)?.start ?? .now
+    @State private var displayedYear: Date =
+        Calendar.app.dateInterval(of: .year, for: .now)?.start ?? .now
     @State private var selectedDay: Date = Calendar.app.startOfDay(for: .now)
     @State private var viewMode: ViewMode = .month
     @State private var isAddingShift = false
@@ -63,6 +72,19 @@ struct CalendarView: View {
     @AppStorage("calendarHeatmapEnabled") private var heatmapEnabled = false
     // Declared so the view refreshes when the week-start setting changes.
     @AppStorage(SettingsKeys.weekStartDay, store: .shared) private var weekStartDay = 0
+
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
+
+    /// Wide layouts (iPad, landscape) show the grid and day list side by side.
+    private var isRegularWidth: Bool {
+        #if os(iOS)
+        horizontalSizeClass == .regular
+        #else
+        true
+        #endif
+    }
 
     private var calendar: Calendar { .app }
 
@@ -123,7 +145,13 @@ struct CalendarView: View {
         switch viewMode {
         case .month: calendar.isDate(displayedMonth, equalTo: .now, toGranularity: .month)
         case .week: calendar.isDate(displayedWeek, equalTo: .now, toGranularity: .weekOfYear)
+        case .year: calendar.isDate(displayedYear, equalTo: .now, toGranularity: .year)
         }
+    }
+
+    /// The year overview needs room; offer it only at regular widths.
+    private var availableModes: [ViewMode] {
+        isRegularWidth ? ViewMode.allCases : [.week, .month]
     }
 
     var body: some View {
@@ -132,6 +160,12 @@ struct CalendarView: View {
                 switch viewMode {
                 case .month: monthLayout
                 case .week: weekLayout
+                case .year: yearLayout
+                }
+            }
+            .onChange(of: isRegularWidth) { _, regular in
+                if !regular, viewMode == .year {
+                    viewMode = .month
                 }
             }
             .navigationTitle("Calendar")
@@ -161,48 +195,67 @@ struct CalendarView: View {
 
     // MARK: Month layout
 
+    @ViewBuilder
     private var monthLayout: some View {
-        List {
-            Section {
-                monthGrid
-                    .listRowInsets(EdgeInsets(top: 8, leading: 8, bottom: 8, trailing: 8))
+        if isRegularWidth {
+            HStack(spacing: 0) {
+                ScrollView {
+                    monthGrid
+                        .padding()
+                        .frame(maxWidth: 480)
+                }
+                .frame(maxWidth: 520)
+                Divider()
+                List {
+                    dayListSection
+                }
             }
+        } else {
+            List {
+                Section {
+                    monthGrid
+                        .listRowInsets(EdgeInsets(top: 8, leading: 8, bottom: 8, trailing: 8))
+                }
+                dayListSection
+            }
+        }
+    }
 
-            Section {
-                if selectedDayShifts.isEmpty {
-                    Text("No shifts")
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(selectedDayShifts) { shift in
-                        Button {
-                            shiftBeingEdited = shift
-                        } label: {
-                            ShiftRow(shift: shift, showsDate: false)
-                        }
-                        .buttonStyle(.plain)
-                        .draggable(ShiftDragPayload(id: shift.persistentModelID))
+    private var dayListSection: some View {
+        Section {
+            if selectedDayShifts.isEmpty {
+                Text("No shifts")
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(selectedDayShifts) { shift in
+                    Button {
+                        shiftBeingEdited = shift
+                    } label: {
+                        ShiftRow(shift: shift, showsDate: false)
                     }
-                    .onDelete { offsets in
-                        withAnimation {
-                            for index in offsets {
-                                modelContext.delete(selectedDayShifts[index])
-                            }
-                        }
-                        refreshWidgets()
-                    }
+                    .buttonStyle(.plain)
+                    .draggable(ShiftDragPayload(id: shift.persistentModelID))
                 }
-            } header: {
-                HStack {
-                    Text(selectedDay.formatted(.dateTime.weekday(.wide).month(.wide).day()))
-                    Spacer()
-                    if !selectedDayShifts.isEmpty {
-                        Text("\(selectedDayShifts.reduce(0) { $0 + $1.workedHours }.formatted(.number.precision(.fractionLength(0...1)))) hrs")
+                .onDelete { offsets in
+                    withAnimation {
+                        for index in offsets {
+                            modelContext.delete(selectedDayShifts[index])
+                        }
                     }
+                    refreshWidgets()
                 }
-            } footer: {
+            }
+        } header: {
+            HStack {
+                Text(selectedDay.formatted(.dateTime.weekday(.wide).month(.wide).day()))
+                Spacer()
                 if !selectedDayShifts.isEmpty {
-                    Text("Drag a shift onto a day in the grid to move it.")
+                    Text("\(selectedDayShifts.reduce(0) { $0 + $1.workedHours }.formatted(.number.precision(.fractionLength(0...1)))) hrs")
                 }
+            }
+        } footer: {
+            if !selectedDayShifts.isEmpty {
+                Text("Drag a shift onto a day in the grid to move it.")
             }
         }
     }
@@ -367,12 +420,12 @@ struct CalendarView: View {
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .principal) {
             Picker("View", selection: $viewMode) {
-                ForEach(ViewMode.allCases) { mode in
+                ForEach(availableModes) { mode in
                     Text(mode.rawValue).tag(mode)
                 }
             }
             .pickerStyle(.segmented)
-            .frame(maxWidth: 200)
+            .frame(maxWidth: 260)
         }
         if !isViewingCurrentPeriod {
             ToolbarItem(placement: .secondaryAction) {
@@ -408,6 +461,10 @@ struct CalendarView: View {
                 if let newWeek = calendar.date(byAdding: .weekOfYear, value: value, to: displayedWeek) {
                     displayedWeek = newWeek
                 }
+            case .year:
+                if let newYear = calendar.date(byAdding: .year, value: value, to: displayedYear) {
+                    displayedYear = newYear
+                }
             }
         }
     }
@@ -416,7 +473,63 @@ struct CalendarView: View {
         withAnimation(.snappy) {
             displayedMonth = calendar.dateInterval(of: .month, for: .now)?.start ?? .now
             displayedWeek = calendar.dateInterval(of: .weekOfYear, for: .now)?.start ?? .now
+            displayedYear = calendar.dateInterval(of: .year, for: .now)?.start ?? .now
             selectedDay = calendar.startOfDay(for: .now)
+        }
+    }
+
+    // MARK: Year layout
+
+    private var yearShifts: [Shift] {
+        guard let interval = calendar.dateInterval(of: .year, for: displayedYear) else { return [] }
+        return shifts.filter { interval.contains($0.start) }
+    }
+
+    private var yearMonths: [Date] {
+        (0..<12).compactMap { calendar.date(byAdding: .month, value: $0, to: displayedYear) }
+    }
+
+    private var yearLayout: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text(displayedYear.formatted(.dateTime.year()))
+                    .font(.headline)
+                Spacer()
+                Button("Previous Year", systemImage: "chevron.backward") {
+                    step(by: -1)
+                }
+                Button("Next Year", systemImage: "chevron.forward") {
+                    step(by: 1)
+                }
+            }
+            .labelStyle(.iconOnly)
+            .buttonStyle(.borderless)
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+
+            if !yearShifts.isEmpty {
+                periodSummary(for: yearShifts)
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 4)
+            }
+
+            ScrollView {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 210), spacing: 16)], spacing: 20) {
+                    ForEach(yearMonths, id: \.self) { month in
+                        MiniMonth(
+                            monthStart: month,
+                            calendar: calendar,
+                            shiftsByDay: shiftsByDay
+                        ) {
+                            withAnimation(.snappy) {
+                                displayedMonth = month
+                                viewMode = .month
+                            }
+                        }
+                    }
+                }
+                .padding()
+            }
         }
     }
 
@@ -434,6 +547,9 @@ struct CalendarView: View {
             notes: template.notes,
             job: job
         )
+        shift.locationName = template.locationName
+        shift.latitude = template.latitude
+        shift.longitude = template.longitude
         modelContext.insert(shift)
     }
 
@@ -549,9 +665,82 @@ private struct DayCell: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .padHoverEffect()
         .accessibilityLabel(day.formatted(date: .complete, time: .omitted))
         .accessibilityValue(shifts.isEmpty ? Text("No shifts") : Text("\(shifts.count) shifts"))
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+    }
+}
+
+// MARK: - Mini month (year view)
+
+private struct MiniMonth: View {
+    let monthStart: Date
+    let calendar: Calendar
+    let shiftsByDay: [Date: [Shift]]
+    let action: () -> Void
+
+    private var isCurrentMonth: Bool {
+        calendar.isDate(monthStart, equalTo: .now, toGranularity: .month)
+    }
+
+    private var monthDays: [Date] {
+        guard let interval = calendar.dateInterval(of: .month, for: monthStart) else { return [] }
+        var days: [Date] = []
+        var day = interval.start
+        while day < interval.end {
+            days.append(day)
+            guard let next = calendar.date(byAdding: .day, value: 1, to: day) else { break }
+            day = next
+        }
+        return days
+    }
+
+    /// Empty cells before the 1st so weekdays line up with the locale's week.
+    private var leadingBlanks: Int {
+        ((calendar.component(.weekday, from: monthStart) - calendar.firstWeekday) + 7) % 7
+    }
+
+    private var totalShifts: Int {
+        monthDays.reduce(0) { $0 + (shiftsByDay[$1]?.count ?? 0) }
+    }
+
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(monthStart.formatted(.dateTime.month(.wide)))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(isCurrentMonth ? Color.accentColor : .primary)
+
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 7), spacing: 4) {
+                    ForEach(0..<leadingBlanks, id: \.self) { _ in
+                        Color.clear.frame(height: 18)
+                    }
+                    ForEach(monthDays, id: \.self) { day in
+                        let hours = (shiftsByDay[day] ?? []).reduce(0) { $0 + $1.workedHours }
+                        Text(day.formatted(.dateTime.day()))
+                            .font(.caption2)
+                            .frame(maxWidth: .infinity, minHeight: 18)
+                            .background {
+                                if hours > 0 {
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .fill(Color.accentColor.opacity(0.15 + 0.4 * min(hours / 8, 1)))
+                                }
+                            }
+                            .foregroundStyle(calendar.isDateInToday(day) ? Color.accentColor : .primary)
+                            .fontWeight(calendar.isDateInToday(day) ? .bold : .regular)
+                    }
+                }
+            }
+            .padding(12)
+            .background(.fill.tertiary, in: RoundedRectangle(cornerRadius: 12))
+            .contentShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
+        .padHoverEffect()
+        .accessibilityLabel(monthStart.formatted(.dateTime.month(.wide).year()))
+        .accessibilityValue("\(totalShifts) shifts")
+        .accessibilityHint("Opens this month")
     }
 }
 

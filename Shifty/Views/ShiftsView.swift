@@ -10,6 +10,9 @@ struct ShiftsView: View {
     @Binding var selectedTab: AppTab
     /// Set alongside switching to the Pay tab to scope it to a week.
     @Binding var payRequestDate: Date?
+    /// Set by other tabs (e.g. tapping a job in Pay) to filter this list;
+    /// consumed and cleared on arrival.
+    @Binding var jobFilterRequest: String?
 
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Shift.start, order: .reverse) private var shifts: [Shift]
@@ -18,6 +21,35 @@ struct ShiftsView: View {
     // Declared so the view refreshes when these settings change.
     @AppStorage(SettingsKeys.weekStartDay, store: .shared) private var weekStartDay = 0
     @AppStorage(SettingsKeys.overtimeEnabled, store: .shared) private var overtimeEnabled = false
+
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
+
+    /// Wide layouts edit shifts in a trailing inspector instead of a sheet.
+    private var isRegularWidth: Bool {
+        #if os(iOS)
+        horizontalSizeClass == .regular
+        #else
+        true
+        #endif
+    }
+
+    /// Sheet presentation, used only at compact widths.
+    private var sheetShift: Binding<Shift?> {
+        Binding(
+            get: { isRegularWidth ? nil : shiftBeingEdited },
+            set: { shiftBeingEdited = $0 }
+        )
+    }
+
+    /// Inspector presentation, used only at regular widths.
+    private var isInspectorPresented: Binding<Bool> {
+        Binding(
+            get: { isRegularWidth && shiftBeingEdited != nil },
+            set: { if !$0 { shiftBeingEdited = nil } }
+        )
+    }
 
     @State private var isAddingShift = false
     @State private var shiftBeingEdited: Shift?
@@ -71,13 +103,27 @@ struct ShiftsView: View {
             .sheet(isPresented: $isAddingShift) {
                 ShiftFormView()
             }
-            .sheet(item: $shiftBeingEdited) { shift in
+            .sheet(item: sheetShift) { shift in
                 ShiftFormView(shift: shift)
+            }
+            .inspector(isPresented: isInspectorPresented) {
+                if let shift = shiftBeingEdited {
+                    ShiftFormView(shift: shift)
+                        .inspectorColumnWidth(min: 320, ideal: 380, max: 460)
+                }
             }
             .sheet(isPresented: $isPickingJumpDate) {
                 jumpDateSheet
             }
+            .onAppear { applyJobFilterRequest() }
+            .onChange(of: jobFilterRequest) { _, _ in applyJobFilterRequest() }
         }
+    }
+
+    private func applyJobFilterRequest() {
+        guard let request = jobFilterRequest else { return }
+        jobFilterName = request
+        jobFilterRequest = nil
     }
 
     private var emptyState: some View {
@@ -260,6 +306,9 @@ struct ShiftsView: View {
             notes: shift.notes,
             job: shift.job
         )
+        copy.locationName = shift.locationName
+        copy.latitude = shift.latitude
+        copy.longitude = shift.longitude
         withAnimation {
             modelContext.insert(copy)
         }
@@ -283,6 +332,9 @@ struct ShiftsView: View {
             notes: shift.notes,
             job: shift.job
         )
+        newShift.locationName = shift.locationName
+        newShift.latitude = shift.latitude
+        newShift.longitude = shift.longitude
         withAnimation {
             modelContext.insert(newShift)
         }
@@ -352,6 +404,10 @@ private struct WeekHeader: View {
 }
 
 #Preview {
-    ShiftsView(selectedTab: .constant(.shifts), payRequestDate: .constant(nil))
-        .modelContainer(for: [Shift.self, Job.self], inMemory: true)
+    ShiftsView(
+        selectedTab: .constant(.shifts),
+        payRequestDate: .constant(nil),
+        jobFilterRequest: .constant(nil)
+    )
+    .modelContainer(for: [Shift.self, Job.self], inMemory: true)
 }
