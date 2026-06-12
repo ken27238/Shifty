@@ -219,13 +219,15 @@ struct SettingsView: View {
             .pickerStyle(.navigationLink)
             Picker("Week Starts On", selection: $weekStartDay) {
                 Text("System Default").tag(0)
-                Text("Sunday").tag(1)
-                Text("Monday").tag(2)
+                // Any weekday, so weeks can match an employer's pay schedule.
+                ForEach(1...7, id: \.self) { weekday in
+                    Text(Calendar.current.weekdaySymbols[weekday - 1]).tag(weekday)
+                }
             }
         } header: {
             Text("Pay")
         } footer: {
-            Text("The pay cycle drives the Pay tab's pay-period mode and payday countdown. For Every 2 Weeks, set any payday so periods line up. A weekly goal (\(0.formatted(.currency(code: Locale.currencyCode).precision(.fractionLength(0)))) = off) shows progress on Home and in Pay.")
+            Text("The pay cycle drives the Pay tab's pay-period mode and payday countdown. For Every 2 Weeks, set any payday so periods line up, and set Week Starts On to the day your work week begins. A weekly goal (\(0.formatted(.currency(code: Locale.currencyCode).precision(.fractionLength(0)))) = off) shows progress on Home and in Pay.")
         }
     }
 
