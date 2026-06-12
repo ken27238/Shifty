@@ -247,7 +247,7 @@ struct ShiftsView: View {
         Menu {
             Picker("Job", selection: $jobFilterName) {
                 Text("All Jobs").tag(String?.none)
-                ForEach(jobs) { job in
+                ForEach(jobs.filter { !$0.archived }) { job in
                     Text(job.name).tag(Optional(job.name))
                 }
             }

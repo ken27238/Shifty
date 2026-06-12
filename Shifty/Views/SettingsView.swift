@@ -136,7 +136,7 @@ struct SettingsView: View {
             }
             Picker("Default Job", selection: $defaultJobName) {
                 Text("None").tag("")
-                ForEach(jobs) { job in
+                ForEach(jobs.filter { !$0.archived }) { job in
                     Text(job.name).tag(job.name)
                 }
             }

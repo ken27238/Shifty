@@ -18,6 +18,8 @@ final class Job {
     var locationName: String = ""
     var latitude: Double?
     var longitude: Double?
+    /// Archived jobs keep their history but leave the pickers.
+    var archived: Bool = false
 
     @Relationship(deleteRule: .nullify, inverse: \Shift.job)
     var shifts: [Shift]? = []

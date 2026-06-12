@@ -12,6 +12,20 @@ struct ShiftFormView: View {
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \Job.name) private var jobs: [Job]
     @Query(sort: \ShiftPreset.name) private var presets: [ShiftPreset]
+    @Query private var allShifts: [Shift]
+
+    /// Archived jobs stay selectable only when already on this shift.
+    private var selectableJobs: [Job] {
+        jobs.filter { !$0.archived || $0 === job }
+    }
+
+    /// Saved shifts whose times collide with the form's times.
+    private var overlappingShifts: [Shift] {
+        allShifts.filter { other in
+            other.persistentModelID != existingShift?.persistentModelID
+                && other.start < end && other.end > start
+        }
+    }
 
     private let existingShift: Shift?
 
@@ -77,7 +91,7 @@ struct ShiftFormView: View {
                 Section {
                     Picker("Job", selection: $job) {
                         Text("None").tag(Job?.none)
-                        ForEach(jobs) { job in
+                        ForEach(selectableJobs) { job in
                             Text(job.name).tag(Optional(job))
                         }
                     }
@@ -87,13 +101,24 @@ struct ShiftFormView: View {
                     }
                 }
 
-                Section("Time") {
+                Section {
                     DatePicker("Starts", selection: $start)
                     DatePicker("Ends", selection: $end, in: start...)
                     Stepper(value: $breakMinutes, in: 0...240, step: 5) {
                         LabeledContent("Break") {
                             Text("\(breakMinutes) min")
                         }
+                    }
+                } header: {
+                    Text("Time")
+                } footer: {
+                    if let overlap = overlappingShifts.first {
+                        Label {
+                            Text("Overlaps with \(overlap.job?.name ?? String(localized: "a shift")) on \(overlap.start.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())), \(overlap.start.formatted(date: .omitted, time: .shortened)) – \(overlap.end.formatted(date: .omitted, time: .shortened))")
+                        } icon: {
+                            Image(systemName: "exclamationmark.triangle")
+                        }
+                        .foregroundStyle(.orange)
                     }
                 }
 

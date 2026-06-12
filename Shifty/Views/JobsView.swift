@@ -27,17 +27,21 @@ struct JobsView: View {
                 }
             } else {
                 List {
-                    ForEach(jobs) { job in
-                        Button {
-                            jobBeingEdited = job
-                        } label: {
-                            JobRow(job: job)
+                    Section {
+                        ForEach(jobs.filter { !$0.archived }) { job in
+                            jobRow(job)
                         }
-                        .buttonStyle(.plain)
-                        .swipeActions {
-                            Button("Delete", systemImage: "trash", role: .destructive) {
-                                jobPendingDeletion = job
+                    }
+                    let archived = jobs.filter(\.archived)
+                    if !archived.isEmpty {
+                        Section {
+                            ForEach(archived) { job in
+                                jobRow(job)
                             }
+                        } header: {
+                            Text("Archived")
+                        } footer: {
+                            Text("Archived jobs keep their shifts and pay history but don't appear when logging new shifts.")
                         }
                     }
                 }
@@ -79,6 +83,31 @@ struct JobsView: View {
             }
         }
     }
+
+    private func jobRow(_ job: Job) -> some View {
+        Button {
+            jobBeingEdited = job
+        } label: {
+            JobRow(job: job)
+        }
+        .buttonStyle(.plain)
+        .swipeActions(edge: .leading) {
+            Button(
+                job.archived ? "Unarchive" : "Archive",
+                systemImage: job.archived ? "tray.and.arrow.up" : "archivebox"
+            ) {
+                withAnimation {
+                    job.archived.toggle()
+                }
+            }
+            .tint(.indigo)
+        }
+        .swipeActions(edge: .trailing) {
+            Button("Delete", systemImage: "trash", role: .destructive) {
+                jobPendingDeletion = job
+            }
+        }
+    }
 }
 
 private struct JobRow: View {
@@ -89,9 +118,11 @@ private struct JobRow: View {
             Circle()
                 .fill(job.color)
                 .frame(width: 14, height: 14)
+                .opacity(job.archived ? 0.4 : 1)
                 .accessibilityHidden(true)
             Text(job.name)
                 .font(.body)
+                .foregroundStyle(job.archived ? .secondary : .primary)
             Spacer()
             Text(job.hourlyRate, format: .currency(code: Locale.currencyCode))
                 .foregroundStyle(.secondary)

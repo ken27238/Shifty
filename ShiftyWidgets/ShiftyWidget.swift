@@ -216,7 +216,9 @@ nonisolated struct JobEntityQuery: EntityQuery {
             guard let container = try? ModelContainer(for: schema, configurations: [configuration]),
                   let jobs = try? container.mainContext.fetch(FetchDescriptor<Job>())
             else { return [] }
-            return jobs.map { JobEntity(id: $0.name) }.sorted { $0.id < $1.id }
+            return jobs.filter { !$0.archived }
+                .map { JobEntity(id: $0.name) }
+                .sorted { $0.id < $1.id }
         }
     }
 }
