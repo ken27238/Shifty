@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Scheme
    LastUpgradeVersion = "2700"
-   version = "1.7">
+   version = "2.0">
    <BuildAction
       parallelizeBuildables = "YES"
       buildImplicitDependencies = "YES">
@@ -34,8 +34,8 @@
       buildConfiguration = "Debug"
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
-      askForAppToLaunch = "Yes"
       launchStyle = "0"
+      askForAppToLaunch = "Yes"
       useCustomWorkingDirectory = "NO"
       ignoresPersistentStateOnLaunch = "NO"
       debugDocumentVersioning = "YES"
@@ -45,6 +45,12 @@
       <RemoteRunnable
          runnableDebuggingMode = "2"
          BundleIdentifier = "com.apple.springboard">
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "C0FFEE0000000000000003"
+            BuildableName = "ShiftyWidgetsExtension.appex"
+            ReferencedContainer = "container:Shifty.xcodeproj">
+         </BuildableReference>
       </RemoteRunnable>
       <EnvironmentVariables>
          <EnvironmentVariable

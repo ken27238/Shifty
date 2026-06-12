@@ -34,6 +34,8 @@ struct SettingsView: View {
     // Reminders
     @AppStorage("remindersEnabled") private var remindersEnabled = false
     @AppStorage("reminderLeadMinutes") private var reminderLeadMinutes = 60
+    @AppStorage("tipRemindersEnabled") private var tipRemindersEnabled = false
+    @AppStorage("weeklySummaryEnabled") private var weeklySummaryEnabled = false
 
     // Sync & appearance
     @AppStorage(SettingsKeys.iCloudSyncEnabled, store: .shared) private var iCloudSyncEnabled = true
@@ -43,6 +45,8 @@ struct SettingsView: View {
     @State private var notificationsDenied = false
     @State private var isExportingCSV = false
     @State private var csvDocument = CSVDocument(text: "")
+    @State private var isImportingCSV = false
+    @State private var importMessage: String?
     @State private var isConfirmingDeleteAll = false
 
     private var appVersion: String {
@@ -137,6 +141,9 @@ struct SettingsView: View {
                 }
             }
             Toggle("Track Tips", isOn: $tipsEnabled)
+            NavigationLink("Shift Templates") {
+                PresetsView()
+            }
         }
     }
 
@@ -241,6 +248,20 @@ struct SettingsView: View {
                     Text("2 hours before").tag(120)
                 }
             }
+            if tipsEnabled {
+                Toggle("Tip Reminders", isOn: $tipRemindersEnabled)
+                    .onChange(of: tipRemindersEnabled) { _, enabled in
+                        if enabled {
+                            Task { _ = await ReminderScheduler.requestAuthorization() }
+                        }
+                    }
+            }
+            Toggle("Weekly Summary", isOn: $weeklySummaryEnabled)
+                .onChange(of: weeklySummaryEnabled) { _, enabled in
+                    if enabled {
+                        Task { _ = await ReminderScheduler.requestAuthorization() }
+                    }
+                }
         } header: {
             Text("Reminders")
         } footer: {
@@ -285,9 +306,35 @@ struct SettingsView: View {
             }
             .disabled(allShifts.isEmpty)
 
+            Button("Import Shifts from CSV", systemImage: "square.and.arrow.down") {
+                isImportingCSV = true
+            }
+
             Button("Delete All Data", systemImage: "trash", role: .destructive) {
                 isConfirmingDeleteAll = true
             }
+        }
+        .fileImporter(
+            isPresented: $isImportingCSV,
+            allowedContentTypes: [.commaSeparatedText, .plainText]
+        ) { result in
+            switch result {
+            case .success(let url):
+                importCSV(from: url)
+            case .failure(let error):
+                importMessage = error.localizedDescription
+            }
+        }
+        .alert(
+            "Import Shifts",
+            isPresented: Binding(
+                get: { importMessage != nil },
+                set: { if !$0 { importMessage = nil } }
+            )
+        ) {
+            Button("OK") { importMessage = nil }
+        } message: {
+            Text(importMessage ?? "")
         }
     }
 
@@ -298,6 +345,104 @@ struct SettingsView: View {
     }
 
     // MARK: Actions
+
+    /// Imports shifts from a CSV in this app's export format, creating
+    /// jobs by name as needed.
+    private func importCSV(from url: URL) {
+        guard url.startAccessingSecurityScopedResource() else {
+            importMessage = String(localized: "Couldn't access that file.")
+            return
+        }
+        defer { url.stopAccessingSecurityScopedResource() }
+
+        guard let text = try? String(contentsOf: url, encoding: .utf8) else {
+            importMessage = String(localized: "Couldn't read that file as text.")
+            return
+        }
+
+        let lines = text.split(whereSeparator: \.isNewline).map(String.init)
+        guard lines.count > 1, lines[0].hasPrefix("Date,Start,End,Break") else {
+            importMessage = String(localized: "That file doesn't match Shifty's CSV format. Export a CSV from Shifty to see the expected columns.")
+            return
+        }
+        // Columns: Date,Start,End,Break,Hours,Job,Rate,Tips[,Mileage,Expenses],Earnings,Notes
+        let hasMileageColumns = lines[0].contains("Mileage")
+
+        let parseStyle = Date.FormatStyle(date: .numeric, time: .shortened)
+        var imported = 0
+        var jobsByName = Dictionary(grouping: jobs, by: \.name).compactMapValues(\.first)
+
+        for line in lines.dropFirst() {
+            let fields = parseCSVLine(line)
+            guard fields.count >= (hasMileageColumns ? 12 : 10),
+                  let start = try? parseStyle.parse("\(fields[0]), \(fields[1])"),
+                  var end = try? parseStyle.parse("\(fields[0]), \(fields[2])")
+            else { continue }
+            if end <= start {
+                end = Calendar.app.date(byAdding: .day, value: 1, to: end) ?? end
+            }
+
+            var job: Job?
+            let jobName = fields[5]
+            if !jobName.isEmpty {
+                if let existing = jobsByName[jobName] {
+                    job = existing
+                } else {
+                    let newJob = Job(name: jobName, hourlyRate: Double(fields[6]) ?? 0)
+                    modelContext.insert(newJob)
+                    jobsByName[jobName] = newJob
+                    job = newJob
+                }
+            }
+
+            let shift = Shift(
+                start: start,
+                end: end,
+                breakMinutes: Int(fields[3]) ?? 0,
+                tips: Double(fields[7]) ?? 0,
+                notes: fields.last ?? "",
+                job: job
+            )
+            if hasMileageColumns {
+                shift.mileage = Double(fields[8]) ?? 0
+                shift.expenses = Double(fields[9]) ?? 0
+            }
+            modelContext.insert(shift)
+            imported += 1
+        }
+
+        refreshWidgets()
+        importMessage = String(localized: "Imported \(imported) shifts.")
+    }
+
+    /// Splits one CSV line, honoring quoted fields with escaped quotes.
+    private func parseCSVLine(_ line: String) -> [String] {
+        var fields: [String] = []
+        var current = ""
+        var inQuotes = false
+        var index = line.startIndex
+
+        while index < line.endIndex {
+            let character = line[index]
+            if character == "\"" {
+                let next = line.index(after: index)
+                if inQuotes, next < line.endIndex, line[next] == "\"" {
+                    current.append("\"")
+                    index = next
+                } else {
+                    inQuotes.toggle()
+                }
+            } else if character == ",", !inQuotes {
+                fields.append(current)
+                current = ""
+            } else {
+                current.append(character)
+            }
+            index = line.index(after: index)
+        }
+        fields.append(current)
+        return fields
+    }
 
     private func deleteAllData() {
         withAnimation {
@@ -335,7 +480,11 @@ nonisolated struct CSVDocument: FileDocument {
             "\"\(value.replacingOccurrences(of: "\"", with: "\"\""))\""
         }
 
-        var lines = ["Date,Start,End,Break (min),Hours,Job,Hourly Rate,Tips,Earnings,Notes"]
+        // No digit grouping: separators would collide with the CSV commas.
+        let number = FloatingPointFormatStyle<Double>.number
+            .precision(.fractionLength(0...2)).grouping(.never)
+
+        var lines = ["Date,Start,End,Break (min),Hours,Job,Hourly Rate,Tips,Mileage,Expenses,Earnings,Notes"]
         let adjusted = PayCalculator.earningsByShift(for: shifts)
         for shift in shifts {
             lines.append([
@@ -343,12 +492,13 @@ nonisolated struct CSVDocument: FileDocument {
                 field(shift.start.formatted(date: .omitted, time: .shortened)),
                 field(shift.end.formatted(date: .omitted, time: .shortened)),
                 "\(shift.breakMinutes)",
-                shift.workedHours.formatted(.number.precision(.fractionLength(0...2))),
+                shift.workedHours.formatted(number),
                 field(shift.job?.name ?? ""),
-                (shift.job?.hourlyRate ?? 0).formatted(.number.precision(.fractionLength(0...2))),
-                shift.tips.formatted(.number.precision(.fractionLength(0...2))),
-                (adjusted[shift.persistentModelID] ?? shift.earnings)
-                    .formatted(.number.precision(.fractionLength(0...2))),
+                (shift.job?.hourlyRate ?? 0).formatted(number),
+                shift.tips.formatted(number),
+                shift.mileage.formatted(number),
+                shift.expenses.formatted(number),
+                (adjusted[shift.persistentModelID] ?? shift.earnings).formatted(number),
                 field(shift.notes),
             ].joined(separator: ","))
         }

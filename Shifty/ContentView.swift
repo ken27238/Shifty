@@ -22,10 +22,13 @@ struct ContentView: View {
     @State private var shiftsJobFilterRequest: String?
     /// Asks Home to open the new-shift form (⌘N from anywhere).
     @State private var addShiftRequest = false
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
 
     @Query(sort: \Shift.start) private var shifts: [Shift]
     @AppStorage("remindersEnabled") private var remindersEnabled = false
     @AppStorage("reminderLeadMinutes") private var reminderLeadMinutes = 60
+    @AppStorage("tipRemindersEnabled") private var tipRemindersEnabled = false
+    @AppStorage("weeklySummaryEnabled") private var weeklySummaryEnabled = false
     @AppStorage(SettingsKeys.appearance, store: .shared) private var appearance = "system"
     @AppStorage(SettingsKeys.accentColorName, store: .shared) private var accentColorName = ""
 
@@ -37,17 +40,16 @@ struct ContentView: View {
         }
     }
 
-    private var upcomingShifts: [Shift] {
-        shifts.filter { $0.start > .now }
-    }
-
     /// Re-syncs reminders whenever shifts or reminder settings change.
     private var reminderSyncKey: Int {
         var hasher = Hasher()
         hasher.combine(remindersEnabled)
         hasher.combine(reminderLeadMinutes)
-        for shift in upcomingShifts {
+        hasher.combine(tipRemindersEnabled)
+        hasher.combine(weeklySummaryEnabled)
+        for shift in shifts where shift.end > .now {
             hasher.combine(shift.start)
+            hasher.combine(shift.end)
             hasher.combine(shift.job?.name)
         }
         return hasher.finalize()
@@ -105,6 +107,20 @@ struct ContentView: View {
         }
         .tabViewStyle(.sidebarAdaptable)
         .background { keyboardShortcuts }
+        .onAppear {
+            // Returning users (e.g. data synced from iCloud) skip onboarding.
+            if !hasCompletedOnboarding, !shifts.isEmpty {
+                hasCompletedOnboarding = true
+            }
+        }
+        .sheet(isPresented: Binding(
+            get: { !hasCompletedOnboarding },
+            set: { if !$0 { hasCompletedOnboarding = true } }
+        )) {
+            OnboardingView {
+                hasCompletedOnboarding = true
+            }
+        }
         .onOpenURL { url in
             // Deep links from widgets: shifty://<destination>
             switch url.host() ?? url.lastPathComponent {
@@ -123,9 +139,11 @@ struct ContentView: View {
         .tint(accentColorName.isEmpty ? nil : Job.palette[accentColorName])
         .task(id: reminderSyncKey) {
             await ReminderScheduler.sync(
-                upcomingShifts: upcomingShifts,
-                enabled: remindersEnabled,
-                leadMinutes: reminderLeadMinutes
+                shifts: shifts,
+                remindersEnabled: remindersEnabled,
+                leadMinutes: reminderLeadMinutes,
+                tipRemindersEnabled: tipRemindersEnabled,
+                weeklySummaryEnabled: weeklySummaryEnabled
             )
         }
     }

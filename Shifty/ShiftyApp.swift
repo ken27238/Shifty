@@ -14,6 +14,7 @@ struct ShiftyApp: App {
         let schema = Schema([
             Shift.self,
             Job.self,
+            ShiftPreset.self,
         ])
         let syncEnabled = UserDefaults.shared.bool(forKey: SettingsKeys.iCloudSyncEnabled)
 

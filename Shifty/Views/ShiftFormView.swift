@@ -11,6 +11,7 @@ struct ShiftFormView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \Job.name) private var jobs: [Job]
+    @Query(sort: \ShiftPreset.name) private var presets: [ShiftPreset]
 
     private let existingShift: Shift?
 
@@ -20,6 +21,8 @@ struct ShiftFormView: View {
     @State private var end: Date
     @State private var breakMinutes: Int
     @State private var tips: Double
+    @State private var mileage: Double
+    @State private var expenses: Double
     @State private var notes: String
     @State private var job: Job?
     @State private var locationName: String
@@ -47,6 +50,8 @@ struct ShiftFormView: View {
         _end = State(initialValue: shift?.end ?? defaultStart.addingTimeInterval(durationHours * 3600))
         _breakMinutes = State(initialValue: shift?.breakMinutes ?? defaults.integer(forKey: SettingsKeys.defaultBreakMinutes))
         _tips = State(initialValue: shift?.tips ?? 0)
+        _mileage = State(initialValue: shift?.mileage ?? 0)
+        _expenses = State(initialValue: shift?.expenses ?? 0)
         _notes = State(initialValue: shift?.notes ?? "")
         _job = State(initialValue: shift?.job)
         _locationName = State(initialValue: shift?.locationName ?? "")
@@ -107,6 +112,22 @@ struct ShiftFormView: View {
                             #endif
                         }
                     }
+                    LabeledContent("Mileage") {
+                        TextField("Mileage", value: $mileage, format: .number.precision(.fractionLength(0...1)))
+                            .multilineTextAlignment(.trailing)
+                            .labelsHidden()
+                            #if os(iOS)
+                            .keyboardType(.decimalPad)
+                            #endif
+                    }
+                    LabeledContent("Expenses") {
+                        TextField("Expenses", value: $expenses, format: .currency(code: Locale.currencyCode))
+                            .multilineTextAlignment(.trailing)
+                            .labelsHidden()
+                            #if os(iOS)
+                            .keyboardType(.decimalPad)
+                            #endif
+                    }
                     TextField("Notes", text: $notes, axis: .vertical)
                 }
 
@@ -163,6 +184,15 @@ struct ShiftFormView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel", role: .cancel) { dismiss() }
                 }
+                if existingShift == nil, !presets.isEmpty {
+                    ToolbarItem(placement: .secondaryAction) {
+                        Menu("Use Template", systemImage: "doc.on.doc") {
+                            ForEach(presets) { preset in
+                                Button(preset.name) { apply(preset) }
+                            }
+                        }
+                    }
+                }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { save() }
                         .disabled(!isValid)
@@ -175,6 +205,23 @@ struct ShiftFormView: View {
                     longitude = coordinate.longitude
                 }
             }
+        }
+    }
+
+    /// Applies a template to the form, keeping the chosen day.
+    private func apply(_ preset: ShiftPreset) {
+        let calendar = Calendar.app
+        if let newStart = calendar.date(
+            bySettingHour: preset.startMinutes / 60,
+            minute: preset.startMinutes % 60,
+            second: 0, of: start
+        ) {
+            start = newStart
+            end = newStart.addingTimeInterval(TimeInterval(preset.durationMinutes * 60))
+        }
+        breakMinutes = preset.breakMinutes
+        if !preset.jobName.isEmpty {
+            job = jobs.first { $0.name == preset.jobName }
         }
     }
 
@@ -197,6 +244,8 @@ struct ShiftFormView: View {
         shift.end = end
         shift.breakMinutes = breakMinutes
         shift.tips = tips
+        shift.mileage = mileage
+        shift.expenses = expenses
         shift.notes = notes
         shift.job = job
         shift.locationName = locationName

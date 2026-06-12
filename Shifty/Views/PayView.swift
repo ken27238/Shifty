@@ -31,6 +31,8 @@ struct PayView: View {
     @State private var referenceDate: Date = .now
     @State private var isExportingCSV = false
     @State private var csvDocument = CSVDocument(text: "")
+    @State private var isExportingPDF = false
+    @State private var pdfDocument = PDFFileDocument(data: Data())
 
     // Declared so the view refreshes when these settings change.
     @AppStorage(SettingsKeys.weekStartDay, store: .shared) private var weekStartDay = 0
@@ -239,9 +241,15 @@ struct PayView: View {
             .navigationTitle("Pay")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Button("Export Period as CSV", systemImage: "square.and.arrow.up") {
-                        csvDocument = CSVDocument(text: CSVDocument.csv(for: periodShifts))
-                        isExportingCSV = true
+                    Menu("Export Period", systemImage: "square.and.arrow.up") {
+                        Button("Export as CSV", systemImage: "tablecells") {
+                            csvDocument = CSVDocument(text: CSVDocument.csv(for: periodShifts))
+                            isExportingCSV = true
+                        }
+                        Button("Export as PDF", systemImage: "doc.richtext") {
+                            pdfDocument = PDFFileDocument(data: makePDFData())
+                            isExportingPDF = true
+                        }
                     }
                     .disabled(periodShifts.isEmpty)
                 }
@@ -250,6 +258,12 @@ struct PayView: View {
                 isPresented: $isExportingCSV,
                 document: csvDocument,
                 contentType: .commaSeparatedText,
+                defaultFilename: "Shifty \(periodTitle)"
+            ) { _ in }
+            .fileExporter(
+                isPresented: $isExportingPDF,
+                document: pdfDocument,
+                contentType: .pdf,
                 defaultFilename: "Shifty \(periodTitle)"
             ) { _ in }
             .onAppear { applyRequestedDate() }
@@ -352,6 +366,17 @@ struct PayView: View {
                 }
             }
 
+            if periodShifts.contains(where: { $0.expenses > 0 }) {
+                LabeledContent("Expenses") {
+                    Text("−\(periodShifts.reduce(0) { $0 + $1.expenses }.formatted(.currency(code: Locale.currencyCode)))")
+                        .foregroundStyle(.secondary)
+                }
+            }
+            if periodShifts.contains(where: { $0.mileage > 0 }) {
+                LabeledContent("Mileage") {
+                    Text("\(periodShifts.reduce(0) { $0 + $1.mileage }.formatted(.number.precision(.fractionLength(0...1)))) mi")
+                }
+            }
             if totalHours > 0 {
                 LabeledContent("Avg. Hourly Rate") {
                     Text(totalEarnings / totalHours, format: .currency(code: Locale.currencyCode))
@@ -511,6 +536,135 @@ struct PayView: View {
         withAnimation {
             referenceDate = newReference
         }
+    }
+
+    /// Renders a one-page pay summary as PDF data (US Letter width).
+    private func makePDFData() -> Data {
+        let content = PaySummaryPDF(
+            periodTitle: periodTitle,
+            totalEarnings: totalEarnings,
+            totalHours: totalHours,
+            totalTips: tipsEnabled ? totalTips : 0,
+            basePay: basePay,
+            overtimeExtra: overtimeExtra,
+            takeHome: takeHomePercent > 0 ? totalEarnings * (1 - takeHomePercent / 100) : nil,
+            shiftCount: periodShifts.count,
+            breakdown: jobBreakdown.map { ($0.name, $0.hours, $0.earnings) }
+        )
+        let renderer = ImageRenderer(content: content)
+        renderer.proposedSize = ProposedViewSize(width: 612, height: nil)
+
+        let data = NSMutableData()
+        renderer.render { size, render in
+            var mediaBox = CGRect(x: 0, y: 0, width: 612, height: max(size.height, 792))
+            guard let consumer = CGDataConsumer(data: data as CFMutableData),
+                  let context = CGContext(consumer: consumer, mediaBox: &mediaBox, nil)
+            else { return }
+            context.beginPDFPage(nil)
+            render(context)
+            context.endPDFPage()
+            context.closePDF()
+        }
+        return data as Data
+    }
+}
+
+/// Fixed light styling: PDFs shouldn't inherit the device's dark mode.
+private struct PaySummaryPDF: View {
+    let periodTitle: String
+    let totalEarnings: Double
+    let totalHours: Double
+    let totalTips: Double
+    let basePay: Double
+    let overtimeExtra: Double
+    let takeHome: Double?
+    let shiftCount: Int
+    let breakdown: [(name: String, hours: Double, earnings: Double)]
+
+    private var currency: FloatingPointFormatStyle<Double>.Currency {
+        .currency(code: Locale.currencyCode)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Shifty Pay Summary")
+                    .font(.title.bold())
+                Text(periodTitle)
+                    .font(.title3)
+                    .foregroundStyle(.gray)
+            }
+
+            VStack(spacing: 6) {
+                row("Earnings", totalEarnings.formatted(currency), bold: true)
+                if overtimeExtra > 0.005 || totalTips > 0 {
+                    row("Base Pay", basePay.formatted(currency))
+                    if overtimeExtra > 0.005 {
+                        row("Overtime", "+" + overtimeExtra.formatted(currency))
+                    }
+                    if totalTips > 0 {
+                        row("Tips", totalTips.formatted(currency))
+                    }
+                }
+                if let takeHome {
+                    row("Est. Take-Home", takeHome.formatted(currency))
+                }
+                row("Hours", totalHours.formatted(.number.precision(.fractionLength(0...1))))
+                row("Shifts", shiftCount.formatted())
+            }
+
+            if breakdown.count > 1 {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("By Job")
+                        .font(.headline)
+                    ForEach(breakdown, id: \.name) { entry in
+                        row(
+                            entry.name,
+                            "\(entry.hours.formatted(.number.precision(.fractionLength(0...1)))) hrs · \(entry.earnings.formatted(currency))"
+                        )
+                    }
+                }
+            }
+
+            Text("Generated by Shifty on \(Date.now.formatted(date: .abbreviated, time: .omitted))")
+                .font(.footnote)
+                .foregroundStyle(.gray)
+        }
+        .frame(width: 612 - 96, alignment: .leading)
+        .padding(48)
+        .background(.white)
+        .foregroundStyle(.black)
+        .environment(\.colorScheme, .light)
+    }
+
+    private func row(_ label: String, _ value: String, bold: Bool = false) -> some View {
+        HStack {
+            Text(label)
+                .foregroundStyle(bold ? .black : .gray)
+            Spacer()
+            Text(value)
+                .fontWeight(bold ? .bold : .regular)
+        }
+        .font(bold ? .title3 : .body)
+    }
+}
+
+/// PDF wrapper for the file exporter.
+nonisolated struct PDFFileDocument: FileDocument {
+    static let readableContentTypes: [UTType] = [.pdf]
+
+    var data: Data
+
+    init(data: Data) {
+        self.data = data
+    }
+
+    init(configuration: ReadConfiguration) throws {
+        data = configuration.file.regularFileContents ?? Data()
+    }
+
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+        FileWrapper(regularFileWithContents: data)
     }
 }
 

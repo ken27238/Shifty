@@ -16,6 +16,10 @@ final class Shift {
     /// Unpaid break, subtracted from worked time.
     var breakMinutes: Int = 0
     var tips: Double = 0
+    /// Commute or work miles, tracked for tax records.
+    var mileage: Double = 0
+    /// Out-of-pocket expenses, tracked separately from earnings.
+    var expenses: Double = 0
     var notes: String = ""
     /// Optional override of the job's location for this one shift.
     var locationName: String = ""

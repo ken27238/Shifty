@@ -68,6 +68,7 @@ struct CalendarView: View {
     @State private var isPickingMonth = false
     @State private var copiedDay: [ShiftTemplate] = []
     @State private var exportMessage: String?
+    @State private var isGeneratingRotation = false
 
     @AppStorage("calendarHeatmapEnabled") private var heatmapEnabled = false
     // Declared so the view refreshes when the week-start setting changes.
@@ -178,6 +179,9 @@ struct CalendarView: View {
             }
             .sheet(isPresented: $isPickingMonth) {
                 MonthYearPicker(displayedMonth: $displayedMonth, calendar: calendar)
+            }
+            .sheet(isPresented: $isGeneratingRotation) {
+                RotationGeneratorView()
             }
             .alert(
                 "Export to Calendar",
@@ -434,6 +438,11 @@ struct CalendarView: View {
         }
         ToolbarItem(placement: .secondaryAction) {
             Toggle("Heatmap", systemImage: "square.grid.3x3.fill", isOn: $heatmapEnabled)
+        }
+        ToolbarItem(placement: .secondaryAction) {
+            Button("Generate Rotation", systemImage: "arrow.trianglehead.2.clockwise.rotate.90") {
+                isGeneratingRotation = true
+            }
         }
         ToolbarItem(placement: .secondaryAction) {
             Button("Export Month to Calendar", systemImage: "square.and.arrow.up") {
