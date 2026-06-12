@@ -2,8 +2,6 @@
 //  ShiftyApp.swift
 //  Shifty
 //
-//  Created by Kendall Seabury on 6/11/26.
-//
 
 import SwiftUI
 import SwiftData
@@ -12,7 +10,8 @@ import SwiftData
 struct ShiftyApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
-            Item.self,
+            Shift.self,
+            Job.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 

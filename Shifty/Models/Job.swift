@@ -1,0 +1,46 @@
+//
+//  Job.swift
+//  Shifty
+//
+
+import SwiftUI
+import SwiftData
+
+@Model
+final class Job {
+    var name: String
+    var hourlyRate: Double
+    var colorName: String
+
+    @Relationship(deleteRule: .nullify, inverse: \Shift.job)
+    var shifts: [Shift] = []
+
+    init(name: String, hourlyRate: Double, colorName: String = "blue") {
+        self.name = name
+        self.hourlyRate = hourlyRate
+        self.colorName = colorName
+    }
+
+    var color: Color {
+        Job.palette[colorName] ?? .accentColor
+    }
+
+    /// System colors only, so they adapt to light/dark mode automatically.
+    static let palette: [String: Color] = [
+        "red": .red,
+        "orange": .orange,
+        "yellow": .yellow,
+        "green": .green,
+        "teal": .teal,
+        "blue": .blue,
+        "indigo": .indigo,
+        "purple": .purple,
+        "pink": .pink,
+        "brown": .brown,
+    ]
+
+    static let paletteOrder = [
+        "red", "orange", "yellow", "green", "teal",
+        "blue", "indigo", "purple", "pink", "brown",
+    ]
+}
