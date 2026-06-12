@@ -184,19 +184,25 @@ struct HomeView: View {
                     )
                 }
 
-                // The projection adds information only while shifts remain.
+                // While shifts remain, show the week as progress toward the plan.
                 if hasFutureShiftsThisWeek {
-                    Label {
-                        if projectedWeekEarnings > 0 {
-                            Text("On track for \(projectedWeekEarnings.formatted(.currency(code: Locale.currencyCode).precision(.fractionLength(0)))) · \(projectedWeekHours.formatted(.number.precision(.fractionLength(0...1)))) hrs this week")
-                        } else {
-                            Text("\(projectedWeekHours.formatted(.number.precision(.fractionLength(0...1)))) hrs planned this week")
+                    VStack(alignment: .leading, spacing: 6) {
+                        ProgressView(
+                            value: min(weekHoursWorked, projectedWeekHours),
+                            total: max(projectedWeekHours, 0.01)
+                        )
+                        HStack {
+                            Text("\(weekHoursWorked.formatted(.number.precision(.fractionLength(0...1)))) of \(projectedWeekHours.formatted(.number.precision(.fractionLength(0...1)))) hrs")
+                            Spacer()
+                            if projectedWeekEarnings > 0 {
+                                Text("On track for \(projectedWeekEarnings.formatted(.currency(code: Locale.currencyCode).precision(.fractionLength(0))))")
+                            }
                         }
-                    } icon: {
-                        Image(systemName: "chart.line.uptrend.xyaxis")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                     }
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .padding(.top, 4)
+                    .accessibilityElement(children: .combine)
                 } else if !lastWeekShifts.isEmpty, weekHoursDelta != 0 {
                     // Compare finished weeks only; mid-week deltas mislead.
                     Label {
