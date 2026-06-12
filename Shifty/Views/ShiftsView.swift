@@ -76,14 +76,15 @@ struct ShiftsView: View {
         }
     }
 
-    /// Shifts grouped by the start of their week, newest week first.
+    /// Shifts grouped by the start of their week — newest week first,
+    /// but chronological within each week.
     private var weeks: [(weekStart: Date, shifts: [Shift])] {
         let grouped = Dictionary(grouping: filteredShifts) { shift in
             calendar.dateInterval(of: .weekOfYear, for: shift.start)?.start ?? shift.start
         }
         return grouped
             .sorted { $0.key > $1.key }
-            .map { (weekStart: $0.key, shifts: $0.value) }
+            .map { (weekStart: $0.key, shifts: $0.value.sorted { $0.start < $1.start }) }
     }
 
     var body: some View {
