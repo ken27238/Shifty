@@ -4,6 +4,6 @@
 //
 
 /// Shared container identifier so the app and widget read the same data store.
-enum AppGroup {
+nonisolated enum AppGroup {
     static let identifier = "group.kseabury.Shifty"
 }

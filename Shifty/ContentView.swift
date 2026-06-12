@@ -16,6 +16,8 @@ enum AppTab: Hashable {
 
 struct ContentView: View {
     @State private var selectedTab: AppTab = .home
+    /// A week the Pay tab should jump to, set when navigating from Shifts.
+    @State private var payRequestDate: Date?
 
     @Query(sort: \Shift.start) private var shifts: [Shift]
     @AppStorage("remindersEnabled") private var remindersEnabled = false
@@ -53,13 +55,13 @@ struct ContentView: View {
                 HomeView(selectedTab: $selectedTab)
             }
             Tab("Shifts", systemImage: "clock", value: .shifts) {
-                ShiftsView()
+                ShiftsView(selectedTab: $selectedTab, payRequestDate: $payRequestDate)
             }
             Tab("Calendar", systemImage: "calendar", value: .calendar) {
                 CalendarView()
             }
             Tab("Pay", systemImage: "banknote", value: .pay) {
-                PayView()
+                PayView(requestedDate: $payRequestDate)
             }
             Tab("Settings", systemImage: "gear", value: .settings) {
                 SettingsView()

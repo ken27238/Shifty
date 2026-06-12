@@ -10,6 +10,18 @@ import SwiftUI
 struct ShiftRow: View {
     let shift: Shift
     var showsDate = true
+    /// Fade future shifts so history and plans read differently (used in the main list).
+    var dimsUpcoming = false
+    /// Show an OT badge when part of this shift was paid at the overtime rate.
+    var overtime = false
+
+    private var isInProgress: Bool {
+        shift.start <= .now && shift.end > .now
+    }
+
+    private var isUpcoming: Bool {
+        shift.start > .now
+    }
 
     private var timeRange: String {
         "\(shift.start.formatted(date: .omitted, time: .shortened)) – \(shift.end.formatted(date: .omitted, time: .shortened))"
@@ -24,27 +36,40 @@ struct ShiftRow: View {
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 2) {
-                if showsDate {
-                    Text(shift.start.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
+                HStack(spacing: 6) {
+                    Text(showsDate
+                         ? shift.start.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())
+                         : timeRange)
                         .font(.headline)
-                    HStack(spacing: 4) {
+                    if isInProgress {
+                        StatusBadge(text: "Now", color: .green)
+                    }
+                    if overtime {
+                        StatusBadge(text: "OT", color: .orange)
+                    }
+                }
+
+                HStack(spacing: 4) {
+                    if showsDate {
                         if let job = shift.job {
                             Text(job.name)
                             Text("·")
                         }
                         Text(timeRange)
-                    }
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                } else {
-                    Text(timeRange)
-                        .font(.headline)
-                    if let job = shift.job {
+                    } else if let job = shift.job {
                         Text(job.name)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                    }
+                    if !shift.notes.isEmpty {
+                        Image(systemName: "note.text")
+                            .accessibilityLabel("Has notes")
+                    }
+                    if shift.tips > 0 {
+                        Image(systemName: "banknote")
+                            .accessibilityLabel("Has tips")
                     }
                 }
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
             }
 
             Spacer()
@@ -58,7 +83,22 @@ struct ShiftRow: View {
             }
         }
         .padding(.vertical, 2)
+        .opacity(dimsUpcoming && isUpcoming ? 0.55 : 1)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
+    }
+}
+
+private struct StatusBadge: View {
+    let text: LocalizedStringKey
+    let color: Color
+
+    var body: some View {
+        Text(text)
+            .font(.caption2.bold())
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(color.opacity(0.18), in: Capsule())
+            .foregroundStyle(color)
     }
 }

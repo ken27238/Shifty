@@ -22,6 +22,10 @@ struct PayView: View {
         }
     }
 
+    /// Set by other tabs (e.g. tapping a week header in Shifts) to scope
+    /// this view to a specific week; consumed and cleared on arrival.
+    @Binding var requestedDate: Date?
+
     @Query private var shifts: [Shift]
 
     @State private var period: Period = .week
@@ -236,7 +240,16 @@ struct PayView: View {
                 }
             }
             .navigationTitle("Pay")
+            .onAppear { applyRequestedDate() }
+            .onChange(of: requestedDate) { _, _ in applyRequestedDate() }
         }
+    }
+
+    private func applyRequestedDate() {
+        guard let date = requestedDate else { return }
+        period = .week
+        referenceDate = date
+        requestedDate = nil
     }
 
     private func step(by value: Int) {
@@ -250,6 +263,6 @@ struct PayView: View {
 }
 
 #Preview {
-    PayView()
+    PayView(requestedDate: .constant(nil))
         .modelContainer(for: [Shift.self, Job.self], inMemory: true)
 }

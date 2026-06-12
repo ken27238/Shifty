@@ -49,14 +49,26 @@ struct HomeView: View {
 
     private var thisWeekShifts: [Shift] { shifts(in: .weekOfYear, of: .now) }
 
+    /// Shifts this week that are already finished — the tiles show these.
+    private var completedWeekShifts: [Shift] {
+        thisWeekShifts.filter { $0.end <= .now }
+    }
+
+    private var weekHoursWorked: Double {
+        completedWeekShifts.reduce(0) { $0 + $1.workedHours }
+    }
+
+    private var weekEarningsSoFar: Double {
+        PayCalculator.totalEarnings(for: completedWeekShifts, calendar: calendar)
+    }
+
     private var lastWeekShifts: [Shift] {
         guard let lastWeek = calendar.date(byAdding: .weekOfYear, value: -1, to: .now) else { return [] }
         return shifts(in: .weekOfYear, of: lastWeek)
     }
 
     private var weekHoursDelta: Double {
-        thisWeekShifts.reduce(0) { $0 + $1.workedHours }
-            - lastWeekShifts.reduce(0) { $0 + $1.workedHours }
+        weekHoursWorked - lastWeekShifts.reduce(0) { $0 + $1.workedHours }
     }
 
     private var hasFutureShiftsThisWeek: Bool {
@@ -65,6 +77,10 @@ struct HomeView: View {
 
     private var projectedWeekEarnings: Double {
         PayCalculator.totalEarnings(for: thisWeekShifts, calendar: calendar)
+    }
+
+    private var projectedWeekHours: Double {
+        thisWeekShifts.reduce(0) { $0 + $1.workedHours }
     }
 
     var body: some View {
@@ -150,47 +166,50 @@ struct HomeView: View {
 
     private var thisWeekSection: some View {
         Section("This Week") {
-            HStack(spacing: 12) {
-                StatTile(
-                    title: "Hours",
-                    value: thisWeekShifts
-                        .reduce(0) { $0 + $1.workedHours }
-                        .formatted(.number.precision(.fractionLength(0...1)))
-                )
-                StatTile(
-                    title: "Earnings",
-                    value: PayCalculator.totalEarnings(for: thisWeekShifts, calendar: calendar)
-                        .formatted(.currency(code: Locale.currencyCode).precision(.fractionLength(0)))
-                )
-                StatTile(
-                    title: "Shifts",
-                    value: thisWeekShifts.count.formatted()
-                )
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 12) {
+                    StatTile(
+                        title: "Hours",
+                        value: weekHoursWorked
+                            .formatted(.number.precision(.fractionLength(0...1)))
+                    )
+                    StatTile(
+                        title: "Earnings",
+                        value: weekEarningsSoFar
+                            .formatted(.currency(code: Locale.currencyCode).precision(.fractionLength(0)))
+                    )
+                    StatTile(
+                        title: "Shifts",
+                        value: completedWeekShifts.count.formatted()
+                    )
+                }
+
+                // The projection adds information only while shifts remain.
+                if hasFutureShiftsThisWeek {
+                    Label {
+                        if projectedWeekEarnings > 0 {
+                            Text("On track for \(projectedWeekEarnings.formatted(.currency(code: Locale.currencyCode).precision(.fractionLength(0)))) · \(projectedWeekHours.formatted(.number.precision(.fractionLength(0...1)))) hrs this week")
+                        } else {
+                            Text("\(projectedWeekHours.formatted(.number.precision(.fractionLength(0...1)))) hrs planned this week")
+                        }
+                    } icon: {
+                        Image(systemName: "chart.line.uptrend.xyaxis")
+                    }
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                } else if !lastWeekShifts.isEmpty, weekHoursDelta != 0 {
+                    // Compare finished weeks only; mid-week deltas mislead.
+                    Label {
+                        Text("\(abs(weekHoursDelta).formatted(.number.precision(.fractionLength(0...1)))) hrs \(weekHoursDelta > 0 ? "more" : "less") than last week")
+                    } icon: {
+                        Image(systemName: weekHoursDelta > 0 ? "arrow.up" : "arrow.down")
+                    }
+                    .font(.footnote)
+                    .foregroundStyle(weekHoursDelta > 0 ? .green : .red)
+                }
             }
             .listRowInsets(EdgeInsets())
             .listRowBackground(Color.clear)
-
-            // Only compare when there is actually a previous week to compare against.
-            if !lastWeekShifts.isEmpty, weekHoursDelta != 0 {
-                Label {
-                    Text("\(abs(weekHoursDelta).formatted(.number.precision(.fractionLength(0...1)))) hrs \(weekHoursDelta > 0 ? "more" : "less") than last week")
-                } icon: {
-                    Image(systemName: weekHoursDelta > 0 ? "arrow.up" : "arrow.down")
-                }
-                .font(.footnote)
-                .foregroundStyle(weekHoursDelta > 0 ? .green : .red)
-            }
-
-            // A $0 projection (e.g. shifts without a job) isn't worth showing.
-            if hasFutureShiftsThisWeek, projectedWeekEarnings > 0 {
-                Label {
-                    Text("On track for \(projectedWeekEarnings.formatted(.currency(code: Locale.currencyCode).precision(.fractionLength(0)))) this week")
-                } icon: {
-                    Image(systemName: "chart.line.uptrend.xyaxis")
-                }
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-            }
 
             Button("View Pay Details") {
                 selectedTab = .pay

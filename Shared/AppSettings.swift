@@ -11,7 +11,7 @@ nonisolated extension UserDefaults {
 }
 
 /// Keys for settings stored in the shared defaults suite.
-enum SettingsKeys {
+nonisolated enum SettingsKeys {
     // Shift defaults
     static let defaultStartMinutes = "defaultStartMinutes"   // minutes from midnight
     static let defaultDurationHours = "defaultDurationHours"
@@ -34,7 +34,7 @@ enum SettingsKeys {
     static let accentColorName = "accentColorName"           // "" = default accent
 }
 
-enum AppSettings {
+nonisolated enum AppSettings {
     /// Call once per process before reading settings.
     static func registerDefaults() {
         UserDefaults.shared.register(defaults: [
