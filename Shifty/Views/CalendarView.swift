@@ -946,5 +946,5 @@ private struct MonthYearPicker: View {
 
 #Preview {
     CalendarView()
-        .modelContainer(for: [Shift.self, Job.self], inMemory: true)
+        .modelContainer(for: [Shift.self, Job.self, ShiftPreset.self], inMemory: true)
 }

@@ -566,5 +566,5 @@ private struct HeroCard<Content: View>: View {
 
 #Preview {
     HomeView(selectedTab: .constant(.home), addShiftRequest: .constant(false))
-        .modelContainer(for: [Shift.self, Job.self], inMemory: true)
+        .modelContainer(for: [Shift.self, Job.self, ShiftPreset.self], inMemory: true)
 }

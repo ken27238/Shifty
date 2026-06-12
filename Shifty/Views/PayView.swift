@@ -674,5 +674,5 @@ nonisolated struct PDFFileDocument: FileDocument {
         requestedDate: .constant(nil),
         jobFilterRequest: .constant(nil)
     )
-    .modelContainer(for: [Shift.self, Job.self], inMemory: true)
+    .modelContainer(for: [Shift.self, Job.self, ShiftPreset.self], inMemory: true)
 }

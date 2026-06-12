@@ -288,5 +288,5 @@ struct ShiftFormView: View {
 
 #Preview {
     ShiftFormView()
-        .modelContainer(for: [Shift.self, Job.self], inMemory: true)
+        .modelContainer(for: [Shift.self, Job.self, ShiftPreset.self], inMemory: true)
 }

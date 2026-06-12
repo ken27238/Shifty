@@ -508,5 +508,5 @@ nonisolated struct CSVDocument: FileDocument {
 
 #Preview {
     SettingsView()
-        .modelContainer(for: [Shift.self, Job.self], inMemory: true)
+        .modelContainer(for: [Shift.self, Job.self, ShiftPreset.self], inMemory: true)
 }
