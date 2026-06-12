@@ -524,8 +524,10 @@ private struct LocationSnippet: View {
     }
 
     private func openInMaps(coordinate: CLLocationCoordinate2D) {
-        let placemark = MKPlacemark(coordinate: coordinate)
-        let item = MKMapItem(placemark: placemark)
+        let item = MKMapItem(
+            location: CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude),
+            address: nil
+        )
         let name = shift.resolvedLocationName
         item.name = name.isEmpty ? (shift.job?.name ?? String(localized: "Shift")) : name
         item.openInMaps(launchOptions: [

@@ -33,13 +33,13 @@ struct LocationPickerView: View {
                 } else {
                     List(results, id: \.self) { item in
                         Button {
-                            onSelect(item.name ?? query, item.placemark.coordinate)
+                            onSelect(item.name ?? query, item.location.coordinate)
                             dismiss()
                         } label: {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(item.name ?? String(localized: "Unknown Place"))
                                     .font(.body)
-                                if let address = item.placemark.title {
+                                if let address = item.address?.fullAddress {
                                     Text(address)
                                         .font(.caption)
                                         .foregroundStyle(.secondary)

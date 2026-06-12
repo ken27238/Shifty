@@ -169,11 +169,13 @@ struct PaydayWidgetView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer(minLength: 0)
-                Text(entry.expectedPay, format: .currency(code: Locale.currencyCode).precision(.fractionLength(0)))
-                    .font(.headline)
-                + Text(entry.takeHomeApplied ? " take-home" : " expected")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                HStack(alignment: .firstTextBaseline, spacing: 3) {
+                    Text(entry.expectedPay, format: .currency(code: Locale.currencyCode).precision(.fractionLength(0)))
+                        .font(.headline)
+                    Text(entry.takeHomeApplied ? "take-home" : "expected")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
             } else {
                 Text("No pay data")
                     .font(.subheadline)

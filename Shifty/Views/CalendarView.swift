@@ -340,7 +340,7 @@ struct CalendarView: View {
             }
             if !dayShifts.isEmpty {
                 Button("Copy Day", systemImage: "doc.on.doc") {
-                    copiedDay = dayShifts.map(ShiftTemplate.init)
+                    copiedDay = dayShifts.map { ShiftTemplate(shift: $0) }
                 }
             }
             if !copiedDay.isEmpty {
@@ -581,6 +581,7 @@ struct CalendarView: View {
         refreshWidgets()
     }
 
+    @discardableResult
     private func move(_ payloads: [ShiftDragPayload], to day: Date) -> Bool {
         var moved = false
         withAnimation {
