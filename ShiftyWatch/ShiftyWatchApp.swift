@@ -11,11 +11,7 @@ struct ShiftyWatchApp: App {
     var sharedModelContainer: ModelContainer = {
         AppSettings.registerDefaults()
 
-        let schema = Schema([
-            Shift.self,
-            Job.self,
-            ShiftPreset.self,
-        ])
+        let schema = Schema.shifty
         // The watch keeps its own store; CloudKit syncs it with the phone.
         let syncEnabled = UserDefaults.shared.bool(forKey: SettingsKeys.iCloudSyncEnabled)
         let cloudConfiguration = ModelConfiguration(

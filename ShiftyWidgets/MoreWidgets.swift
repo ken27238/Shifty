@@ -18,7 +18,7 @@ struct RepeatLastShiftIntent: AppIntent {
     func perform() async throws -> some IntentResult {
         AppSettings.registerDefaults()
 
-        let schema = Schema([Shift.self, Job.self, ShiftPreset.self])
+        let schema = Schema.shifty
         let configuration = ModelConfiguration(
             schema: schema,
             groupContainer: .identifier(AppGroup.identifier),

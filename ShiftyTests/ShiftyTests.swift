@@ -22,7 +22,7 @@ struct PayCalculatorTests {
     /// The container must outlive the context, so tests hold the container.
     private func makeContainer() throws -> ModelContainer {
         try ModelContainer(
-            for: Shift.self, Job.self, ShiftPreset.self,
+            for: .shifty,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true)
         )
     }
@@ -181,7 +181,7 @@ struct PayPeriodsTests {
 struct LocationFallbackTests {
     @Test func shiftFallsBackToJobLocation() throws {
         let container = try ModelContainer(
-            for: Shift.self, Job.self, ShiftPreset.self,
+            for: .shifty,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true)
         )
         let context = container.mainContext

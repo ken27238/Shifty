@@ -102,7 +102,7 @@ enum SnapshotMaker {
     static func make(jobFilter: String? = nil) -> ShiftySnapshot {
         AppSettings.registerDefaults()
 
-        let schema = Schema([Shift.self, Job.self, ShiftPreset.self])
+        let schema = Schema.shifty
         // Read-only access to the app's store; the app owns CloudKit syncing.
         let configuration = ModelConfiguration(
             schema: schema,
@@ -207,7 +207,7 @@ nonisolated struct JobEntityQuery: EntityQuery {
     func suggestedEntities() async throws -> [JobEntity] {
         await MainActor.run {
             AppSettings.registerDefaults()
-            let schema = Schema([Shift.self, Job.self, ShiftPreset.self])
+            let schema = Schema.shifty
             let configuration = ModelConfiguration(
                 schema: schema,
                 groupContainer: .identifier(AppGroup.identifier),

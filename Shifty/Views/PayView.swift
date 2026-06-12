@@ -82,48 +82,96 @@ struct PayView: View {
 
     private var periodShifts: [Shift] { shifts(in: interval) }
 
-    // MARK: Totals
+    // MARK: Stats (computed once per render)
 
-    private var earningsByShift: [PersistentIdentifier: Double] {
-        PayCalculator.earningsByShift(for: periodShifts, calendar: calendar)
+    private struct JobSlice {
+        let name: String
+        let jobName: String?
+        let color: Color
+        let hours: Double
+        let earnings: Double
     }
 
-    private var totalEarnings: Double {
-        earningsByShift.values.reduce(0, +)
+    private struct DailySlice: Identifiable {
+        let id: String
+        let day: Date
+        let jobName: String
+        let earnings: Double
     }
 
-    private var totalHours: Double {
-        periodShifts.reduce(0) { $0 + $1.workedHours }
+    /// Everything the sections display, derived from one pass over the
+    /// shifts plus one overtime-calculator run for the visible period.
+    private struct PeriodStats {
+        var shifts: [Shift] = []
+        var totalEarnings = 0.0
+        var hours = 0.0
+        var tips = 0.0
+        var basePay = 0.0
+        var mileage = 0.0
+        var expenses = 0.0
+        var previousEarnings = 0.0
+        var previousHasShifts = false
+        var breakdown: [JobSlice] = []
+        var daily: [DailySlice] = []
+        var trend: [(start: Date, label: String, earnings: Double)] = []
+
+        var overtimeExtra: Double { max(0, totalEarnings - tips - basePay) }
     }
 
-    private var totalTips: Double {
-        periodShifts.reduce(0) { $0 + $1.tips }
-    }
+    private func makeStats() -> PeriodStats {
+        var stats = PeriodStats()
+        let interval = interval
+        let previous = previousInterval
 
-    /// Pay at the base rate, before overtime and tips.
-    private var basePay: Double {
-        periodShifts.reduce(0) { $0 + $1.workedHours * ($1.job?.hourlyRate ?? 0) }
-    }
+        // The trend's older periods, newest first, excluding the visible one.
+        var trendIntervals: [DateInterval] = [interval]
+        for _ in 1..<(period == .month ? 6 : 8) {
+            if let last = trendIntervals.last {
+                trendIntervals.append(self.interval(containing: last.start.addingTimeInterval(-1)))
+            }
+        }
+        var trendTotals = [Double](repeating: 0, count: trendIntervals.count)
+        var trendShifts = [[Shift]](repeating: [], count: trendIntervals.count)
 
-    private var overtimeExtra: Double {
-        max(0, totalEarnings - totalTips - basePay)
-    }
+        var previousShifts: [Shift] = []
+        for shift in shifts {
+            if interval.contains(shift.start) {
+                stats.shifts.append(shift)
+                stats.hours += shift.workedHours
+                stats.tips += shift.tips
+                stats.basePay += shift.workedHours * (shift.job?.hourlyRate ?? 0)
+                stats.mileage += shift.mileage
+                stats.expenses += shift.expenses
+            }
+            if previous.contains(shift.start) {
+                previousShifts.append(shift)
+            }
+            for (index, trendInterval) in trendIntervals.enumerated() where trendInterval.contains(shift.start) {
+                trendShifts[index].append(shift)
+            }
+        }
 
-    private var previousEarnings: Double {
-        PayCalculator.totalEarnings(for: shifts(in: previousInterval), calendar: calendar)
-    }
+        let adjusted = PayCalculator.earningsByShift(for: stats.shifts, calendar: calendar)
+        stats.totalEarnings = adjusted.values.reduce(0, +)
+        stats.previousHasShifts = !previousShifts.isEmpty
+        stats.previousEarnings = PayCalculator.totalEarnings(for: previousShifts, calendar: calendar)
 
-    private var previousHasShifts: Bool {
-        !shifts(in: previousInterval).isEmpty
-    }
+        for index in trendIntervals.indices {
+            trendTotals[index] = index == 0
+                ? stats.totalEarnings
+                : PayCalculator.totalEarnings(for: trendShifts[index], calendar: calendar)
+        }
+        stats.trend = Array(zip(trendIntervals, trendTotals).map { trendInterval, total in
+            let label = period == .month
+                ? trendInterval.start.formatted(.dateTime.month(.abbreviated))
+                : trendInterval.start.formatted(.dateTime.month(.defaultDigits).day())
+            return (start: trendInterval.start, label: label, earnings: total)
+        }.reversed())
 
-    /// Earnings and hours per job in the period, highest earnings first.
-    private var jobBreakdown: [(name: String, jobName: String?, color: Color, hours: Double, earnings: Double)] {
-        let adjusted = earningsByShift
-        let grouped = Dictionary(grouping: periodShifts) { $0.job?.name ?? String(localized: "No Job") }
-        return grouped
+        let grouped = Dictionary(grouping: stats.shifts) { $0.job?.name ?? String(localized: "No Job") }
+        stats.breakdown = grouped
             .map { name, shifts in
-                (
+                JobSlice(
                     name: name,
                     jobName: shifts.first?.job?.name,
                     color: shifts.first?.job?.color ?? Color.gray,
@@ -132,16 +180,12 @@ struct PayView: View {
                 )
             }
             .sorted { $0.earnings > $1.earnings }
-    }
 
-    /// One chart entry per day per job, so bars stack by job color.
-    private var dailyEarnings: [(id: String, day: Date, jobName: String, earnings: Double)] {
-        let adjusted = earningsByShift
-        return periodShifts
+        stats.daily = stats.shifts
             .map { shift in
                 let day = calendar.startOfDay(for: shift.start)
                 let jobName = shift.job?.name ?? String(localized: "No Job")
-                return (
+                return DailySlice(
                     id: "\(day.timeIntervalSinceReferenceDate)-\(jobName)-\(shift.persistentModelID)",
                     day: day,
                     jobName: jobName,
@@ -149,25 +193,8 @@ struct PayView: View {
                 )
             }
             .sorted { $0.day < $1.day }
-    }
 
-    /// Recent periods at the current granularity, oldest first.
-    private var trend: [(start: Date, label: String, earnings: Double)] {
-        var items: [(start: Date, label: String, earnings: Double)] = []
-        var current = interval
-        let count = period == .month ? 6 : 8
-        for _ in 0..<count {
-            let label = period == .month
-                ? current.start.formatted(.dateTime.month(.abbreviated))
-                : current.start.formatted(.dateTime.month(.defaultDigits).day())
-            items.append((
-                start: current.start,
-                label: label,
-                earnings: PayCalculator.totalEarnings(for: shifts(in: current), calendar: calendar)
-            ))
-            current = interval(containing: current.start.addingTimeInterval(-1))
-        }
-        return items.reversed()
+        return stats
     }
 
     // MARK: Payday
@@ -210,17 +237,19 @@ struct PayView: View {
     }
 
     var body: some View {
+        let stats = makeStats()
+
         NavigationStack {
             List {
                 pickerSection
                 paydaySection
-                totalsSection
+                totalsSection(stats)
 
                 if period == .week, weeklyGoal > 0 {
-                    goalSection
+                    goalSection(total: stats.totalEarnings)
                 }
 
-                if periodShifts.isEmpty {
+                if stats.shifts.isEmpty {
                     Section {
                         ContentUnavailableView(
                             "No Pay This Period",
@@ -230,28 +259,28 @@ struct PayView: View {
                         .listRowBackground(Color.clear)
                     }
                 } else {
-                    if jobBreakdown.count > 1 {
-                        byJobSection
+                    if stats.breakdown.count > 1 {
+                        byJobSection(stats)
                     }
-                    chartSection
+                    chartSection(stats)
                 }
 
-                trendSection
+                trendSection(stats)
             }
             .navigationTitle("Pay")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Menu("Export Period", systemImage: "square.and.arrow.up") {
                         Button("Export as CSV", systemImage: "tablecells") {
-                            csvDocument = CSVDocument(text: CSVDocument.csv(for: periodShifts))
+                            csvDocument = CSVDocument(text: CSVDocument.csv(for: stats.shifts))
                             isExportingCSV = true
                         }
                         Button("Export as PDF", systemImage: "doc.richtext") {
-                            pdfDocument = PDFFileDocument(data: makePDFData())
+                            pdfDocument = PDFFileDocument(data: makePDFData(stats))
                             isExportingPDF = true
                         }
                     }
-                    .disabled(periodShifts.isEmpty)
+                    .disabled(stats.shifts.isEmpty)
                 }
             }
             .fileExporter(
@@ -318,7 +347,7 @@ struct PayView: View {
         }
     }
 
-    private var totalsSection: some View {
+    private func totalsSection(_ stats: PeriodStats) -> some View {
         Section {
             HStack {
                 Button("Previous", systemImage: "chevron.backward") {
@@ -341,63 +370,63 @@ struct PayView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 LabeledContent("Earnings") {
-                    Text(totalEarnings, format: .currency(code: Locale.currencyCode))
+                    Text(stats.totalEarnings, format: .currency(code: Locale.currencyCode))
                         .font(.headline)
                 }
-                if previousHasShifts, abs(totalEarnings - previousEarnings) > 0.005 {
-                    comparisonLabel
+                if stats.previousHasShifts, abs(stats.totalEarnings - stats.previousEarnings) > 0.005 {
+                    comparisonLabel(stats)
                 }
             }
 
-            if overtimeExtra > 0.005 || (tipsEnabled && totalTips > 0) {
+            if stats.overtimeExtra > 0.005 || (tipsEnabled && stats.tips > 0) {
                 LabeledContent("Base Pay") {
-                    Text(basePay, format: .currency(code: Locale.currencyCode))
+                    Text(stats.basePay, format: .currency(code: Locale.currencyCode))
                 }
-                if overtimeExtra > 0.005 {
+                if stats.overtimeExtra > 0.005 {
                     LabeledContent("Overtime") {
-                        Text("+\(overtimeExtra.formatted(.currency(code: Locale.currencyCode)))")
+                        Text("+\(stats.overtimeExtra.formatted(.currency(code: Locale.currencyCode)))")
                             .foregroundStyle(.orange)
                     }
                 }
-                if tipsEnabled, totalTips > 0 {
+                if tipsEnabled, stats.tips > 0 {
                     LabeledContent("Tips") {
-                        Text(totalTips, format: .currency(code: Locale.currencyCode))
+                        Text(stats.tips, format: .currency(code: Locale.currencyCode))
                     }
                 }
             }
 
-            if periodShifts.contains(where: { $0.expenses > 0 }) {
+            if stats.expenses > 0 {
                 LabeledContent("Expenses") {
-                    Text("−\(periodShifts.reduce(0) { $0 + $1.expenses }.formatted(.currency(code: Locale.currencyCode)))")
+                    Text("−\(stats.expenses.formatted(.currency(code: Locale.currencyCode)))")
                         .foregroundStyle(.secondary)
                 }
             }
-            if periodShifts.contains(where: { $0.mileage > 0 }) {
+            if stats.mileage > 0 {
                 LabeledContent("Mileage") {
-                    Text("\(periodShifts.reduce(0) { $0 + $1.mileage }.formatted(.number.precision(.fractionLength(0...1)))) mi")
+                    Text("\(stats.mileage.formatted(.number.precision(.fractionLength(0...1)))) mi")
                 }
             }
-            if totalHours > 0 {
+            if stats.hours > 0 {
                 LabeledContent("Avg. Hourly Rate") {
-                    Text(totalEarnings / totalHours, format: .currency(code: Locale.currencyCode))
+                    Text(stats.totalEarnings / stats.hours, format: .currency(code: Locale.currencyCode))
                 }
             }
             LabeledContent("Hours") {
-                Text(totalHours.formatted(.number.precision(.fractionLength(0...1))))
+                Text(stats.hours.formatted(.number.precision(.fractionLength(0...1))))
             }
             if takeHomePercent > 0 {
                 LabeledContent("Est. Take-Home") {
-                    Text(totalEarnings * (1 - takeHomePercent / 100),
+                    Text(stats.totalEarnings * (1 - takeHomePercent / 100),
                          format: .currency(code: Locale.currencyCode))
                 }
             }
-            LabeledContent("Shifts", value: periodShifts.count, format: .number)
+            LabeledContent("Shifts", value: stats.shifts.count, format: .number)
         }
     }
 
-    private var comparisonLabel: some View {
-        let delta = totalEarnings - previousEarnings
-        let percent = previousEarnings > 0 ? Int((delta / previousEarnings * 100).rounded()) : nil
+    private func comparisonLabel(_ stats: PeriodStats) -> some View {
+        let delta = stats.totalEarnings - stats.previousEarnings
+        let percent = stats.previousEarnings > 0 ? Int((delta / stats.previousEarnings * 100).rounded()) : nil
 
         return Label {
             Text("\(abs(delta).formatted(.currency(code: Locale.currencyCode).precision(.fractionLength(0))))\(percent.map { " (\(abs($0))%)" } ?? "") \(delta > 0 ? "more" : "less") than the previous \(periodNoun)")
@@ -416,11 +445,11 @@ struct PayView: View {
         }
     }
 
-    private var goalSection: some View {
+    private func goalSection(total: Double) -> some View {
         Section("Weekly Goal") {
             VStack(alignment: .leading, spacing: 6) {
-                ProgressView(value: min(totalEarnings, weeklyGoal), total: max(weeklyGoal, 0.01))
-                Text("\(totalEarnings.formatted(.currency(code: Locale.currencyCode).precision(.fractionLength(0)))) of \(weeklyGoal.formatted(.currency(code: Locale.currencyCode).precision(.fractionLength(0)))) · \(Int(min(totalEarnings / max(weeklyGoal, 0.01), 1) * 100))%")
+                ProgressView(value: min(total, weeklyGoal), total: max(weeklyGoal, 0.01))
+                Text("\(total.formatted(.currency(code: Locale.currencyCode).precision(.fractionLength(0)))) of \(weeklyGoal.formatted(.currency(code: Locale.currencyCode).precision(.fractionLength(0)))) · \(Int(min(total / max(weeklyGoal, 0.01), 1) * 100))%")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -429,9 +458,9 @@ struct PayView: View {
         }
     }
 
-    private var byJobSection: some View {
+    private func byJobSection(_ stats: PeriodStats) -> some View {
         Section("By Job") {
-            ForEach(jobBreakdown, id: \.name) { entry in
+            ForEach(stats.breakdown, id: \.name) { entry in
                 Button {
                     if let jobName = entry.jobName {
                         jobFilterRequest = jobName
@@ -450,7 +479,7 @@ struct PayView: View {
                             Text(entry.earnings, format: .currency(code: Locale.currencyCode))
                                 .font(.subheadline.weight(.medium))
                                 .foregroundStyle(.primary)
-                            Text("\(entry.hours.formatted(.number.precision(.fractionLength(0...1)))) hrs · \(totalEarnings > 0 ? Int((entry.earnings / totalEarnings * 100).rounded()) : 0)%")
+                            Text("\(entry.hours.formatted(.number.precision(.fractionLength(0...1)))) hrs · \(stats.totalEarnings > 0 ? Int((entry.earnings / stats.totalEarnings * 100).rounded()) : 0)%")
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
                         }
@@ -469,9 +498,9 @@ struct PayView: View {
         }
     }
 
-    private var chartSection: some View {
+    private func chartSection(_ stats: PeriodStats) -> some View {
         Section("Earnings by Day") {
-            Chart(dailyEarnings, id: \.id) { entry in
+            Chart(stats.daily) { entry in
                 BarMark(
                     x: .value("Day", entry.day, unit: .day),
                     y: .value("Earnings", entry.earnings)
@@ -480,10 +509,10 @@ struct PayView: View {
                 .cornerRadius(4)
             }
             .chartForegroundStyleScale(
-                domain: jobBreakdown.map(\.name),
-                range: jobBreakdown.map(\.color)
+                domain: stats.breakdown.map(\.name),
+                range: stats.breakdown.map(\.color)
             )
-            .chartLegend(jobBreakdown.count > 1 ? .visible : .hidden)
+            .chartLegend(stats.breakdown.count > 1 ? .visible : .hidden)
             .chartXAxis {
                 if period == .week {
                     AxisMarks(values: .stride(by: .day)) { _ in
@@ -500,9 +529,9 @@ struct PayView: View {
         }
     }
 
-    private var trendSection: some View {
+    private func trendSection(_ stats: PeriodStats) -> some View {
         Section("Trend") {
-            Chart(trend, id: \.start) { entry in
+            Chart(stats.trend, id: \.start) { entry in
                 BarMark(
                     x: .value("Period", entry.label),
                     y: .value("Earnings", entry.earnings)
@@ -539,17 +568,17 @@ struct PayView: View {
     }
 
     /// Renders a one-page pay summary as PDF data (US Letter width).
-    private func makePDFData() -> Data {
+    private func makePDFData(_ stats: PeriodStats) -> Data {
         let content = PaySummaryPDF(
             periodTitle: periodTitle,
-            totalEarnings: totalEarnings,
-            totalHours: totalHours,
-            totalTips: tipsEnabled ? totalTips : 0,
-            basePay: basePay,
-            overtimeExtra: overtimeExtra,
-            takeHome: takeHomePercent > 0 ? totalEarnings * (1 - takeHomePercent / 100) : nil,
-            shiftCount: periodShifts.count,
-            breakdown: jobBreakdown.map { ($0.name, $0.hours, $0.earnings) }
+            totalEarnings: stats.totalEarnings,
+            totalHours: stats.hours,
+            totalTips: tipsEnabled ? stats.tips : 0,
+            basePay: stats.basePay,
+            overtimeExtra: stats.overtimeExtra,
+            takeHome: takeHomePercent > 0 ? stats.totalEarnings * (1 - takeHomePercent / 100) : nil,
+            shiftCount: stats.shifts.count,
+            breakdown: stats.breakdown.map { ($0.name, $0.hours, $0.earnings) }
         )
         let renderer = ImageRenderer(content: content)
         renderer.proposedSize = ProposedViewSize(width: 612, height: nil)
@@ -674,5 +703,5 @@ nonisolated struct PDFFileDocument: FileDocument {
         requestedDate: .constant(nil),
         jobFilterRequest: .constant(nil)
     )
-    .modelContainer(for: [Shift.self, Job.self, ShiftPreset.self], inMemory: true)
+    .modelContainer(for: ShiftyModels.all, inMemory: true)
 }

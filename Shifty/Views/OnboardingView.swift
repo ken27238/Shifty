@@ -142,5 +142,5 @@ struct OnboardingView: View {
 
 #Preview {
     OnboardingView(onFinish: {})
-        .modelContainer(for: [Shift.self, Job.self, ShiftPreset.self], inMemory: true)
+        .modelContainer(for: ShiftyModels.all, inMemory: true)
 }

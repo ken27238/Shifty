@@ -45,7 +45,7 @@ nonisolated struct WatchEntry: TimelineEntry {
 private func makeWatchEntry() -> WatchEntry {
     AppSettings.registerDefaults()
 
-    let schema = Schema([Shift.self, Job.self, ShiftPreset.self])
+    let schema = Schema.shifty
     // The watch app owns CloudKit; complications read its store locally.
     let configuration = ModelConfiguration(
         schema: schema,

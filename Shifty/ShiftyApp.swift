@@ -11,11 +11,7 @@ struct ShiftyApp: App {
     var sharedModelContainer: ModelContainer = {
         AppSettings.registerDefaults()
 
-        let schema = Schema([
-            Shift.self,
-            Job.self,
-            ShiftPreset.self,
-        ])
+        let schema = Schema.shifty
         let syncEnabled = UserDefaults.shared.bool(forKey: SettingsKeys.iCloudSyncEnabled)
 
         // The app group container is shared with the widget extension;

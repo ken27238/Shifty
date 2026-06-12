@@ -47,44 +47,47 @@ struct HomeView: View {
 
     private var lastCompletedShift: Shift? { recentShifts.first }
 
-    private func shifts(in component: Calendar.Component, of date: Date) -> [Shift] {
-        guard let interval = calendar.dateInterval(of: component, for: date) else { return [] }
-        return shifts.filter { interval.contains($0.start) }
+    /// Everything the week card shows, gathered in one pass over the shifts.
+    private struct HomeStats {
+        var weekShifts: [Shift] = []
+        var completedWeek: [Shift] = []
+        var weekHasFuture = false
+        var lastWeekHours = 0.0
+        var lastWeekHasShifts = false
+        var monthShifts: [Shift] = []
+        var yearShifts: [Shift] = []
     }
 
-    private var thisWeekShifts: [Shift] { shifts(in: .weekOfYear, of: .now) }
+    private func computeStats() -> HomeStats {
+        var stats = HomeStats()
+        let now = Date.now
+        guard let week = calendar.dateInterval(of: .weekOfYear, for: now),
+              let month = calendar.dateInterval(of: .month, for: now),
+              let year = calendar.dateInterval(of: .year, for: now),
+              let lastWeekDate = calendar.date(byAdding: .weekOfYear, value: -1, to: now),
+              let lastWeek = calendar.dateInterval(of: .weekOfYear, for: lastWeekDate)
+        else { return stats }
 
-    private var completedWeekShifts: [Shift] {
-        thisWeekShifts.filter { $0.end <= .now }
-    }
-
-    private var weekHoursWorked: Double {
-        completedWeekShifts.reduce(0) { $0 + $1.workedHours }
-    }
-
-    private var weekEarningsSoFar: Double {
-        PayCalculator.totalEarnings(for: completedWeekShifts, calendar: calendar)
-    }
-
-    private var lastWeekShifts: [Shift] {
-        guard let lastWeek = calendar.date(byAdding: .weekOfYear, value: -1, to: .now) else { return [] }
-        return shifts(in: .weekOfYear, of: lastWeek)
-    }
-
-    private var weekHoursDelta: Double {
-        weekHoursWorked - lastWeekShifts.reduce(0) { $0 + $1.workedHours }
-    }
-
-    private var hasFutureShiftsThisWeek: Bool {
-        thisWeekShifts.contains { $0.start > .now }
-    }
-
-    private var projectedWeekEarnings: Double {
-        PayCalculator.totalEarnings(for: thisWeekShifts, calendar: calendar)
-    }
-
-    private var projectedWeekHours: Double {
-        thisWeekShifts.reduce(0) { $0 + $1.workedHours }
+        for shift in shifts {
+            if week.contains(shift.start) {
+                stats.weekShifts.append(shift)
+                if shift.end <= now {
+                    stats.completedWeek.append(shift)
+                } else if shift.start > now {
+                    stats.weekHasFuture = true
+                }
+            } else if lastWeek.contains(shift.start) {
+                stats.lastWeekHours += shift.workedHours
+                stats.lastWeekHasShifts = true
+            }
+            if month.contains(shift.start) {
+                stats.monthShifts.append(shift)
+            }
+            if year.contains(shift.start) {
+                stats.yearShifts.append(shift)
+            }
+        }
+        return stats
     }
 
     var body: some View {
@@ -139,9 +142,11 @@ struct HomeView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
+                let stats = computeStats()
+
                 heroCard
                 quickActions
-                weekCard
+                weekCard(stats)
 
                 if !comingUpShifts.isEmpty {
                     sectionRows(
@@ -254,9 +259,12 @@ struct HomeView: View {
 
     // MARK: Week card
 
-    private var weekCard: some View {
-        let monthShifts = shifts(in: .month, of: .now)
-        let yearShifts = shifts(in: .year, of: .now)
+    private func weekCard(_ stats: HomeStats) -> some View {
+        let worked = stats.completedWeek.reduce(0) { $0 + $1.workedHours }
+        let earned = PayCalculator.totalEarnings(for: stats.completedWeek, calendar: calendar)
+        let projectedHours = stats.weekShifts.reduce(0) { $0 + $1.workedHours }
+        let projectedEarnings = PayCalculator.totalEarnings(for: stats.weekShifts, calendar: calendar)
+        let delta = worked - stats.lastWeekHours
 
         return VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -278,21 +286,21 @@ struct HomeView: View {
 
             HStack(alignment: .firstTextBaseline, spacing: 20) {
                 weekStat(
-                    value: weekHoursWorked.formatted(.number.precision(.fractionLength(0...1))),
+                    value: worked.formatted(.number.precision(.fractionLength(0...1))),
                     label: "hours"
                 )
                 weekStat(
-                    value: weekEarningsSoFar.formatted(.currency(code: Locale.currencyCode).precision(.fractionLength(0))),
+                    value: earned.formatted(.currency(code: Locale.currencyCode).precision(.fractionLength(0))),
                     label: "earned"
                 )
                 weekStat(
-                    value: completedWeekShifts.count.formatted(),
+                    value: stats.completedWeek.count.formatted(),
                     label: "shifts"
                 )
-                if hasFutureShiftsThisWeek, projectedWeekEarnings > 0 {
+                if stats.weekHasFuture, projectedEarnings > 0 {
                     Spacer()
                     weekStat(
-                        value: projectedWeekEarnings.formatted(.currency(code: Locale.currencyCode).precision(.fractionLength(0))),
+                        value: projectedEarnings.formatted(.currency(code: Locale.currencyCode).precision(.fractionLength(0))),
                         label: "on track",
                         muted: true
                     )
@@ -302,31 +310,31 @@ struct HomeView: View {
             if weeklyGoal > 0 {
                 // A goal gives the bar meaning even with nothing scheduled.
                 ProgressView(
-                    value: min(weekEarningsSoFar, weeklyGoal),
+                    value: min(earned, weeklyGoal),
                     total: max(weeklyGoal, 0.01)
                 )
-                Text("\(weekEarningsSoFar.formatted(.currency(code: Locale.currencyCode).precision(.fractionLength(0)))) of \(weeklyGoal.formatted(.currency(code: Locale.currencyCode).precision(.fractionLength(0)))) goal · \(totalsFootnote(month: monthShifts, year: yearShifts))")
+                Text("\(earned.formatted(.currency(code: Locale.currencyCode).precision(.fractionLength(0)))) of \(weeklyGoal.formatted(.currency(code: Locale.currencyCode).precision(.fractionLength(0)))) goal · \(totalsFootnote(month: stats.monthShifts, year: stats.yearShifts))")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-            } else if hasFutureShiftsThisWeek {
+            } else if stats.weekHasFuture {
                 ProgressView(
-                    value: min(weekHoursWorked, projectedWeekHours),
-                    total: max(projectedWeekHours, 0.01)
+                    value: min(worked, projectedHours),
+                    total: max(projectedHours, 0.01)
                 )
-                Text("\(weekHoursWorked.formatted(.number.precision(.fractionLength(0...1)))) of \(projectedWeekHours.formatted(.number.precision(.fractionLength(0...1)))) hrs · \(totalsFootnote(month: monthShifts, year: yearShifts))")
+                Text("\(worked.formatted(.number.precision(.fractionLength(0...1)))) of \(projectedHours.formatted(.number.precision(.fractionLength(0...1)))) hrs · \(totalsFootnote(month: stats.monthShifts, year: stats.yearShifts))")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
-                if !lastWeekShifts.isEmpty, weekHoursDelta != 0 {
+                if stats.lastWeekHasShifts, delta != 0 {
                     Label {
-                        Text("\(abs(weekHoursDelta).formatted(.number.precision(.fractionLength(0...1)))) hrs \(weekHoursDelta > 0 ? "more" : "less") than last week")
+                        Text("\(abs(delta).formatted(.number.precision(.fractionLength(0...1)))) hrs \(delta > 0 ? "more" : "less") than last week")
                     } icon: {
-                        Image(systemName: weekHoursDelta > 0 ? "arrow.up" : "arrow.down")
+                        Image(systemName: delta > 0 ? "arrow.up" : "arrow.down")
                     }
                     .font(.caption)
-                    .foregroundStyle(weekHoursDelta > 0 ? .green : .red)
+                    .foregroundStyle(delta > 0 ? .green : .red)
                 }
-                Text(totalsFootnote(month: monthShifts, year: yearShifts))
+                Text(totalsFootnote(month: stats.monthShifts, year: stats.yearShifts))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -566,5 +574,5 @@ private struct HeroCard<Content: View>: View {
 
 #Preview {
     HomeView(selectedTab: .constant(.home), addShiftRequest: .constant(false))
-        .modelContainer(for: [Shift.self, Job.self, ShiftPreset.self], inMemory: true)
+        .modelContainer(for: ShiftyModels.all, inMemory: true)
 }

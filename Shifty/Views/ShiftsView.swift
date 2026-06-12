@@ -410,5 +410,5 @@ private struct WeekHeader: View {
         payRequestDate: .constant(nil),
         jobFilterRequest: .constant(nil)
     )
-    .modelContainer(for: [Shift.self, Job.self, ShiftPreset.self], inMemory: true)
+    .modelContainer(for: ShiftyModels.all, inMemory: true)
 }

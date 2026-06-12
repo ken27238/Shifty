@@ -12,7 +12,7 @@ import Foundation
 @MainActor
 private func fetchShifts() throws -> [Shift] {
     AppSettings.registerDefaults()
-    let schema = Schema([Shift.self, Job.self, ShiftPreset.self])
+    let schema = Schema.shifty
     let configuration = ModelConfiguration(
         schema: schema,
         groupContainer: .identifier(AppGroup.identifier),
