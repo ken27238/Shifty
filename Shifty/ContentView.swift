@@ -105,6 +105,20 @@ struct ContentView: View {
         }
         .tabViewStyle(.sidebarAdaptable)
         .background { keyboardShortcuts }
+        .onOpenURL { url in
+            // Deep links from widgets: shifty://<destination>
+            switch url.host() ?? url.lastPathComponent {
+            case "home": selectedTab = .home
+            case "shifts": selectedTab = .shifts
+            case "calendar": selectedTab = .calendar
+            case "pay": selectedTab = .pay
+            case "settings": selectedTab = .settings
+            case "newshift":
+                selectedTab = .home
+                addShiftRequest = true
+            default: break
+            }
+        }
         .preferredColorScheme(colorScheme)
         .tint(accentColorName.isEmpty ? nil : Job.palette[accentColorName])
         .task(id: reminderSyncKey) {

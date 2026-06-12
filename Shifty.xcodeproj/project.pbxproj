@@ -61,11 +61,21 @@
 			);
 			target = C0FFEE0000000000000003 /* ShiftyWidgetsExtension */;
 		};
+		C0FFEE0000000000000010 /* Exceptions for "Shifty" folder in "Shifty" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = BEE64B992FDB704F00BAF334 /* Shifty */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		BEE64B9C2FDB704F00BAF334 /* Shifty */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				C0FFEE0000000000000010 /* Exceptions for "Shifty" folder in "Shifty" target */,
+			);
 			path = Shifty;
 			sourceTree = "<group>";
 		};
@@ -469,6 +479,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Shifty/Info.plist;
 				INFOPLIST_KEY_NSCalendarsWriteOnlyAccessUsageDescription = "Shifty adds your shifts as events in your calendar.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -517,6 +528,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Shifty/Info.plist;
 				INFOPLIST_KEY_NSCalendarsWriteOnlyAccessUsageDescription = "Shifty adds your shifts as events in your calendar.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;

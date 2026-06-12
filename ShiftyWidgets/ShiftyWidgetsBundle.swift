@@ -10,5 +10,9 @@ import SwiftUI
 struct ShiftyWidgetsBundle: WidgetBundle {
     var body: some Widget {
         ShiftyWidget()
+        WeekWidget()
+        PaydayWidget()
+        ScheduleWidget()
+        MonthWidget()
     }
 }
