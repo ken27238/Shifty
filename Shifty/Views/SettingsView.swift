@@ -53,6 +53,24 @@ struct SettingsView: View {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
     }
 
+    /// Widgets snapshot these settings; changing any should reload them
+    /// immediately instead of waiting for the next timeline refresh.
+    private var widgetSettingsKey: Int {
+        var hasher = Hasher()
+        hasher.combine(weekStartDay)
+        hasher.combine(payCycle)
+        hasher.combine(payAnchor)
+        hasher.combine(weeklyGoal)
+        hasher.combine(overtimeEnabled)
+        hasher.combine(overtimeWeekly)
+        hasher.combine(overtimeThreshold)
+        hasher.combine(overtimeMultiplier)
+        hasher.combine(takeHomePercent)
+        hasher.combine(currencyOverride)
+        hasher.combine(tipsEnabled)
+        return hasher.finalize()
+    }
+
     private var defaultStartTime: Binding<Date> {
         Binding(
             get: {
@@ -84,6 +102,9 @@ struct SettingsView: View {
             .navigationTitle("Settings")
             .task {
                 notificationsDenied = await ReminderScheduler.isAuthorizationDenied()
+            }
+            .onChange(of: widgetSettingsKey) { _, _ in
+                refreshWidgets()
             }
             .fileExporter(
                 isPresented: $isExportingCSV,

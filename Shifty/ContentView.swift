@@ -29,6 +29,12 @@ struct ContentView: View {
     @AppStorage("reminderLeadMinutes") private var reminderLeadMinutes = 60
     @AppStorage("tipRemindersEnabled") private var tipRemindersEnabled = false
     @AppStorage("weeklySummaryEnabled") private var weeklySummaryEnabled = false
+    // The weekly summary's totals depend on these, so reschedule on change.
+    @AppStorage(SettingsKeys.weekStartDay, store: .shared) private var weekStartDay = 0
+    @AppStorage(SettingsKeys.overtimeEnabled, store: .shared) private var overtimeEnabled = false
+    @AppStorage(SettingsKeys.overtimeThreshold, store: .shared) private var overtimeThreshold = 40.0
+    @AppStorage(SettingsKeys.overtimeMultiplier, store: .shared) private var overtimeMultiplier = 1.5
+    @AppStorage(SettingsKeys.overtimeWeekly, store: .shared) private var overtimeWeekly = true
     @AppStorage(SettingsKeys.appearance, store: .shared) private var appearance = "system"
     @AppStorage(SettingsKeys.accentColorName, store: .shared) private var accentColorName = ""
 
@@ -47,6 +53,11 @@ struct ContentView: View {
         hasher.combine(reminderLeadMinutes)
         hasher.combine(tipRemindersEnabled)
         hasher.combine(weeklySummaryEnabled)
+        hasher.combine(weekStartDay)
+        hasher.combine(overtimeEnabled)
+        hasher.combine(overtimeThreshold)
+        hasher.combine(overtimeMultiplier)
+        hasher.combine(overtimeWeekly)
         for shift in shifts where shift.end > .now {
             hasher.combine(shift.start)
             hasher.combine(shift.end)
