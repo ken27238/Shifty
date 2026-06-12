@@ -12,8 +12,15 @@ struct OnboardingView: View {
     @Environment(\.modelContext) private var modelContext
     let onFinish: () -> Void
 
+    private enum Field {
+        case name
+        case rate
+    }
+
     @State private var jobName = ""
-    @State private var hourlyRate = 0.0
+    // Optional so the field starts empty instead of a "$0.00" to type around.
+    @State private var hourlyRate: Double?
+    @FocusState private var focusedField: Field?
 
     var body: some View {
         ScrollView {
@@ -59,6 +66,9 @@ struct OnboardingView: View {
                         .foregroundStyle(.secondary)
                     TextField("Job name (e.g. Cafe)", text: $jobName)
                         .textFieldStyle(.roundedBorder)
+                        .focused($focusedField, equals: .name)
+                        .submitLabel(.next)
+                        .onSubmit { focusedField = .rate }
                     LabeledContent("Hourly Rate") {
                         TextField(
                             "Hourly Rate",
@@ -69,6 +79,7 @@ struct OnboardingView: View {
                         .multilineTextAlignment(.trailing)
                         .frame(maxWidth: 140)
                         .labelsHidden()
+                        .focused($focusedField, equals: .rate)
                         #if os(iOS)
                         .keyboardType(.decimalPad)
                         #endif
@@ -121,7 +132,9 @@ struct OnboardingView: View {
     private func finish(creatingJob: Bool) {
         let trimmed = jobName.trimmingCharacters(in: .whitespaces)
         if creatingJob, !trimmed.isEmpty {
-            modelContext.insert(Job(name: trimmed, hourlyRate: max(hourlyRate, 0)))
+            modelContext.insert(Job(name: trimmed, hourlyRate: max(hourlyRate ?? 0, 0)))
+            // First job becomes the default so new shifts pick up its rate.
+            UserDefaults.shared.set(trimmed, forKey: SettingsKeys.defaultJobName)
         }
         onFinish()
     }

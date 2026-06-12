@@ -29,15 +29,9 @@ final class ShiftyUITests: XCTestCase {
         if jobField.waitForExistence(timeout: 5) {
             shot("01-onboarding")
             jobField.tap()
-            jobField.typeText("Cafe")
-            let rateField = app.textFields["Hourly Rate"]
-            if rateField.exists {
-                rateField.tap()
-                if app.keyboards.firstMatch.waitForExistence(timeout: 2) {
-                    rateField.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 6))
-                    rateField.typeText("20")
-                }
-            }
+            // Return advances focus to the rate field via onSubmit.
+            jobField.typeText("Cafe\n")
+            app.typeText("20")
             // Drag down to dismiss the keyboard so Get Started is hittable.
             app.swipeDown()
             let getStarted = app.buttons["Get Started"]
@@ -60,9 +54,18 @@ final class ShiftyUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Shifty"].waitForExistence(timeout: 5))
         shot("04-home-with-shift")
 
-        // Visit every tab.
+        // Visit every tab. sidebarAdaptable keeps an offscreen sidebar copy
+        // of each tab button, so prefer the tab bar and require hittability.
         for (index, tab) in ["Shifts", "Calendar", "Pay", "Settings"].enumerated() {
-            let tabButton = app.buttons[tab].firstMatch
+            let inTabBar = app.tabBars.buttons[tab].firstMatch
+            let tabButton: XCUIElement
+            if inTabBar.waitForExistence(timeout: 2) {
+                tabButton = inTabBar
+            } else {
+                tabButton = app.buttons.matching(identifier: tab)
+                    .allElementsBoundByIndex.first(where: \.isHittable)
+                    ?? app.buttons[tab].firstMatch
+            }
             XCTAssertTrue(tabButton.waitForExistence(timeout: 5), "\(tab) tab should exist")
             tabButton.tap()
             XCTAssertTrue(

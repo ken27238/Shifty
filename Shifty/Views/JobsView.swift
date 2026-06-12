@@ -143,7 +143,8 @@ struct JobFormView: View {
     private let existingJob: Job?
 
     @State private var name: String
-    @State private var hourlyRate: Double
+    // Optional so a new job's field starts empty instead of "$0.00".
+    @State private var hourlyRate: Double?
     @State private var colorName: String
     @State private var locationName: String
     @State private var latitude: Double?
@@ -153,7 +154,7 @@ struct JobFormView: View {
     init(job: Job? = nil) {
         existingJob = job
         _name = State(initialValue: job?.name ?? "")
-        _hourlyRate = State(initialValue: job?.hourlyRate ?? 0)
+        _hourlyRate = State(initialValue: job?.hourlyRate)
         _colorName = State(initialValue: job?.colorName ?? "blue")
         _locationName = State(initialValue: job?.locationName ?? "")
         _latitude = State(initialValue: job?.latitude)
@@ -161,7 +162,7 @@ struct JobFormView: View {
     }
 
     private var isValid: Bool {
-        !name.trimmingCharacters(in: .whitespaces).isEmpty && hourlyRate >= 0
+        !name.trimmingCharacters(in: .whitespaces).isEmpty && (hourlyRate ?? 0) >= 0
     }
 
     var body: some View {
@@ -259,11 +260,11 @@ struct JobFormView: View {
         if let existingJob {
             job = existingJob
         } else {
-            job = Job(name: name, hourlyRate: hourlyRate, colorName: colorName)
+            job = Job(name: name, hourlyRate: max(hourlyRate ?? 0, 0), colorName: colorName)
             modelContext.insert(job)
         }
         job.name = name
-        job.hourlyRate = hourlyRate
+        job.hourlyRate = max(hourlyRate ?? 0, 0)
         job.colorName = colorName
         job.locationName = locationName
         job.latitude = latitude

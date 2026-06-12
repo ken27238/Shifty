@@ -193,12 +193,17 @@ struct ShiftFormView: View {
                 }
             }
             .task {
-                // Pre-select the default job from Settings for new shifts.
+                // Pre-select the default job for new shifts; with exactly one
+                // active job there's nothing to choose, so use it.
                 guard !didApplyDefaultJob, existingShift == nil, job == nil else { return }
                 didApplyDefaultJob = true
                 let defaultName = UserDefaults.shared.string(forKey: SettingsKeys.defaultJobName) ?? ""
+                let active = jobs.filter { !$0.archived }
                 if !defaultName.isEmpty {
-                    job = jobs.first { $0.name == defaultName }
+                    job = active.first { $0.name == defaultName }
+                }
+                if job == nil, active.count == 1 {
+                    job = active.first
                 }
             }
             .navigationTitle(existingShift == nil ? "New Shift" : "Edit Shift")
