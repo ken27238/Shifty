@@ -168,7 +168,7 @@ struct SettingsView: View {
             }
             if payCycle == "biweekly" {
                 DatePicker(
-                    "A Recent Payday",
+                    "First Day of a Pay Period",
                     selection: anchorPayday,
                     displayedComponents: .date
                 )
@@ -227,7 +227,7 @@ struct SettingsView: View {
         } header: {
             Text("Pay")
         } footer: {
-            Text("The pay cycle drives the Pay tab's pay-period mode and payday countdown. For Every 2 Weeks, set any payday so periods line up, and set Week Starts On to the day your work week begins. A weekly goal (\(0.formatted(.currency(code: Locale.currencyCode).precision(.fractionLength(0)))) = off) shows progress on Home and in Pay.")
+            Text("The pay cycle drives the Pay tab's pay-period mode and payday countdown. For Every 2 Weeks, enter the first day of any pay period — for example, if a period runs Sunday June 7 through Saturday June 20, enter June 7 — and set Week Starts On to match. A weekly goal (\(0.formatted(.currency(code: Locale.currencyCode).precision(.fractionLength(0)))) = off) shows progress on Home and in Pay.")
         }
     }
 

@@ -135,6 +135,19 @@ struct PayPeriodsTests {
         #expect(interval.contains(date(2026, 6, 20)))
     }
 
+    @Test func biweeklyAnchorIsThePeriodStart() throws {
+        // A period of Sunday June 7 through Saturday June 20 is anchored
+        // by entering June 7 — the first day, not the payday.
+        let suite = defaults(anchor: date(2026, 6, 7))
+
+        let interval = PayPeriods.interval(
+            containing: date(2026, 6, 12), cycle: .biweekly,
+            calendar: calendar, defaults: suite
+        )
+        #expect(interval.start == date(2026, 6, 7))
+        #expect(interval.end == date(2026, 6, 21))
+    }
+
     @Test func biweeklyHandlesDatesBeforeAnchor() throws {
         let anchor = date(2026, 6, 1)
         let suite = defaults(anchor: anchor)
