@@ -7,6 +7,11 @@
 		<key>Shifty.xcscheme_^#shared#^_</key>
 		<dict>
 			<key>orderHint</key>
+			<integer>2</integer>
+		</dict>
+		<key>ShiftyWatch.xcscheme_^#shared#^_</key>
+		<dict>
+			<key>orderHint</key>
 			<integer>1</integer>
 		</dict>
 		<key>ShiftyWidgetsExtension.xcscheme_^#shared#^_</key>

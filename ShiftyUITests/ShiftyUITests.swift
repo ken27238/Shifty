@@ -2,42 +2,74 @@
 //  ShiftyUITests.swift
 //  ShiftyUITests
 //
-//  Created by Kendall Seabury on 6/11/26.
-//
 
 import XCTest
 
 final class ShiftyUITests: XCTestCase {
-
     override func setUpWithError() throws {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
-
-        // In UI tests it is usually best to stop immediately when a failure occurs.
-        continueAfterFailure = false
-
-        // In UI tests it’s important to set the initial state - such as interface orientation - required for your tests before they run. The setUp method is a good place to do this.
+        continueAfterFailure = true
     }
 
-    override func tearDownWithError() throws {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
-    }
-
+    /// Walks the first-launch flow and every tab, attaching screenshots
+    /// for visual review.
     @MainActor
-    func testExample() throws {
-        // UI tests must launch the application that they test.
+    func testWalkthrough() throws {
         let app = XCUIApplication()
         app.launch()
 
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
-        // XCUIAutomation Documentation
-        // https://developer.apple.com/documentation/xcuiautomation
-    }
+        func shot(_ name: String) {
+            let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+            attachment.name = name
+            attachment.lifetime = .keepAlways
+            add(attachment)
+        }
 
-    @MainActor
-    func testLaunchPerformance() throws {
-        // This measures how long it takes to launch your application.
-        measure(metrics: [XCTApplicationLaunchMetric()]) {
-            XCUIApplication().launch()
+        // Onboarding appears on first launch only.
+        let jobField = app.textFields["Job name (e.g. Cafe)"]
+        if jobField.waitForExistence(timeout: 5) {
+            shot("01-onboarding")
+            jobField.tap()
+            jobField.typeText("Cafe")
+            let rateField = app.textFields["Hourly Rate"]
+            if rateField.exists {
+                rateField.tap()
+                if app.keyboards.firstMatch.waitForExistence(timeout: 2) {
+                    rateField.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 6))
+                    rateField.typeText("20")
+                }
+            }
+            // Drag down to dismiss the keyboard so Get Started is hittable.
+            app.swipeDown()
+            let getStarted = app.buttons["Get Started"]
+            XCTAssertTrue(getStarted.waitForExistence(timeout: 3))
+            getStarted.tap()
+        }
+
+        XCTAssertTrue(
+            app.navigationBars["Shifty"].waitForExistence(timeout: 5),
+            "Home should appear after onboarding"
+        )
+        shot("02-home-empty")
+
+        // Log a shift with the default times.
+        app.buttons["Add Shift"].firstMatch.tap()
+        XCTAssertTrue(app.buttons["Save"].waitForExistence(timeout: 5), "Shift form should appear")
+        shot("03-shift-form")
+        app.buttons["Save"].tap()
+
+        XCTAssertTrue(app.navigationBars["Shifty"].waitForExistence(timeout: 5))
+        shot("04-home-with-shift")
+
+        // Visit every tab.
+        for (index, tab) in ["Shifts", "Calendar", "Pay", "Settings"].enumerated() {
+            let tabButton = app.buttons[tab].firstMatch
+            XCTAssertTrue(tabButton.waitForExistence(timeout: 5), "\(tab) tab should exist")
+            tabButton.tap()
+            XCTAssertTrue(
+                app.navigationBars[tab].waitForExistence(timeout: 5),
+                "\(tab) screen should appear"
+            )
+            shot("0\(5 + index)-\(tab.lowercased())")
         }
     }
 }

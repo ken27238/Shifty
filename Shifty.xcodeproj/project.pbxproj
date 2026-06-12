@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		C0FFEE000000000000000E /* ShiftyWidgetsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C0FFEE0000000000000004 /* ShiftyWidgetsExtension.appex */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		C0FFEE000000000000001D /* ShiftyWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = C0FFEE0000000000000013 /* ShiftyWatch.app */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -32,6 +33,13 @@
 			remoteGlobalIDString = C0FFEE0000000000000003;
 			remoteInfo = ShiftyWidgetsExtension;
 		};
+		C0FFEE000000000000001A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = BEE64B922FDB704F00BAF334 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C0FFEE0000000000000012;
+			remoteInfo = ShiftyWatch;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -44,6 +52,17 @@
 			);
 			name = "Embed Foundation Extensions";
 		};
+		C0FFEE000000000000001C /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				C0FFEE000000000000001D /* ShiftyWatch.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
@@ -51,6 +70,7 @@
 		BEE64BA92FDB705100BAF334 /* ShiftyTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ShiftyTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		BEE64BB32FDB705100BAF334 /* ShiftyUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ShiftyUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C0FFEE0000000000000004 /* ShiftyWidgetsExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShiftyWidgetsExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		C0FFEE0000000000000013 /* ShiftyWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ShiftyWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -67,6 +87,13 @@
 				Info.plist,
 			);
 			target = BEE64B992FDB704F00BAF334 /* Shifty */;
+		};
+		C0FFEE000000000000001E /* Exceptions for "ShiftyWatch" folder in "ShiftyWatch" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = C0FFEE0000000000000012 /* ShiftyWatch */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -102,6 +129,14 @@
 			path = ShiftyWidgets;
 			sourceTree = "<group>";
 		};
+		C0FFEE0000000000000011 /* ShiftyWatch */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				C0FFEE000000000000001E /* Exceptions for "ShiftyWatch" folder in "ShiftyWatch" target */,
+			);
+			path = ShiftyWatch;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -125,6 +160,11 @@
 			files = (
 			);
 		};
+		C0FFEE0000000000000015 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -134,6 +174,7 @@
 				BEE64B9C2FDB704F00BAF334 /* Shifty */,
 				C0FFEE0000000000000001 /* Shared */,
 				C0FFEE0000000000000002 /* ShiftyWidgets */,
+				C0FFEE0000000000000011 /* ShiftyWatch */,
 				BEE64BAC2FDB705100BAF334 /* ShiftyTests */,
 				BEE64BB62FDB705100BAF334 /* ShiftyUITests */,
 				BEE64B9B2FDB704F00BAF334 /* Products */,
@@ -147,6 +188,7 @@
 				BEE64BA92FDB705100BAF334 /* ShiftyTests.xctest */,
 				BEE64BB32FDB705100BAF334 /* ShiftyUITests.xctest */,
 				C0FFEE0000000000000004 /* ShiftyWidgetsExtension.appex */,
+				C0FFEE0000000000000013 /* ShiftyWatch.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -162,11 +204,13 @@
 				BEE64B972FDB704F00BAF334 /* Frameworks */,
 				BEE64B982FDB704F00BAF334 /* Resources */,
 				C0FFEE000000000000000D /* Embed Foundation Extensions */,
+				C0FFEE000000000000001C /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				C0FFEE000000000000000C /* PBXTargetDependency */,
+				C0FFEE000000000000001B /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				BEE64B9C2FDB704F00BAF334 /* Shifty */,
@@ -238,6 +282,27 @@
 			productReference = C0FFEE0000000000000004 /* ShiftyWidgetsExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		C0FFEE0000000000000012 /* ShiftyWatch */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C0FFEE0000000000000017 /* Build configuration list for PBXNativeTarget "ShiftyWatch" */;
+			buildPhases = (
+				C0FFEE0000000000000014 /* Sources */,
+				C0FFEE0000000000000015 /* Frameworks */,
+				C0FFEE0000000000000016 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				C0FFEE0000000000000001 /* Shared */,
+				C0FFEE0000000000000011 /* ShiftyWatch */,
+			);
+			name = ShiftyWatch;
+			productName = ShiftyWatch;
+			productReference = C0FFEE0000000000000013 /* ShiftyWatch.app */;
+			productType = "com.apple.product-type.application";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -279,6 +344,7 @@
 				BEE64BA82FDB705100BAF334 /* ShiftyTests */,
 				BEE64BB22FDB705100BAF334 /* ShiftyUITests */,
 				C0FFEE0000000000000003 /* ShiftyWidgetsExtension */,
+				C0FFEE0000000000000012 /* ShiftyWatch */,
 			);
 		};
 /* End PBXProject section */
@@ -300,6 +366,11 @@
 			);
 		};
 		C0FFEE0000000000000007 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
+		C0FFEE0000000000000016 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			files = (
 			);
@@ -327,6 +398,11 @@
 			files = (
 			);
 		};
+		C0FFEE0000000000000014 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -345,6 +421,12 @@
 			platformFilter = ios;
 			target = C0FFEE0000000000000003 /* ShiftyWidgetsExtension */;
 			targetProxy = C0FFEE000000000000000B /* PBXContainerItemProxy */;
+		};
+		C0FFEE000000000000001B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			platformFilter = ios;
+			target = C0FFEE0000000000000012 /* ShiftyWatch */;
+			targetProxy = C0FFEE000000000000001A /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -729,6 +811,72 @@
 			};
 			name = Release;
 		};
+		C0FFEE0000000000000018 /* Debug configuration for PBXNativeTarget "ShiftyWatch" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ALLOW_ENTITLEMENTS_MODIFICATION = YES;
+				CODE_SIGN_ENTITLEMENTS = ShiftyWatch/ShiftyWatch.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = QGL6NPQ9K5;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ShiftyWatch/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = kseabury.Shifty.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "watchos watchsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Debug;
+		};
+		C0FFEE0000000000000019 /* Release configuration for PBXNativeTarget "ShiftyWatch" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ALLOW_ENTITLEMENTS_MODIFICATION = YES;
+				CODE_SIGN_ENTITLEMENTS = ShiftyWatch/ShiftyWatch.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = QGL6NPQ9K5;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ShiftyWatch/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = kseabury.Shifty.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "watchos watchsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -769,6 +917,14 @@
 			buildConfigurations = (
 				C0FFEE0000000000000009 /* Debug configuration for PBXNativeTarget "ShiftyWidgetsExtension" */,
 				C0FFEE000000000000000A /* Release configuration for PBXNativeTarget "ShiftyWidgetsExtension" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		C0FFEE0000000000000017 /* Build configuration list for PBXNativeTarget "ShiftyWatch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C0FFEE0000000000000018 /* Debug configuration for PBXNativeTarget "ShiftyWatch" */,
+				C0FFEE0000000000000019 /* Release configuration for PBXNativeTarget "ShiftyWatch" */,
 			);
 			defaultConfigurationName = Release;
 		};
