@@ -43,6 +43,7 @@ struct ShiftFormView: View {
     @State private var latitude: Double?
     @State private var longitude: Double?
     @State private var isPickingLocation = false
+    @State private var isDescribingShift = false
     @State private var didApplyDefaultJob = false
 
     /// New shifts start on `defaultDay` (today if nil) using the user's
@@ -223,6 +224,13 @@ struct ShiftFormView: View {
                         }
                     }
                 }
+                if existingShift == nil, ShiftIntelligence.isAvailable {
+                    ToolbarItem(placement: .secondaryAction) {
+                        Button("Describe Shift", systemImage: "wand.and.stars") {
+                            isDescribingShift = true
+                        }
+                    }
+                }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { save() }
                         .disabled(!isValid)
@@ -235,6 +243,30 @@ struct ShiftFormView: View {
                     longitude = coordinate.longitude
                 }
             }
+            .sheet(isPresented: $isDescribingShift) {
+                DescribeShiftView(jobNames: selectableJobs.map(\.name)) { draft in
+                    apply(draft)
+                }
+            }
+        }
+    }
+
+    /// Applies a model-extracted draft to the form for review.
+    private func apply(_ draft: ResolvedShiftDraft) {
+        start = draft.start
+        end = draft.end
+        breakMinutes = draft.breakMinutes
+        if draft.tips > 0 {
+            tips = draft.tips
+        }
+        if !draft.notes.isEmpty {
+            notes = draft.notes
+        }
+        if !draft.jobName.isEmpty,
+           let match = selectableJobs.first(where: {
+               $0.name.localizedCaseInsensitiveCompare(draft.jobName) == .orderedSame
+           }) {
+            job = match
         }
     }
 

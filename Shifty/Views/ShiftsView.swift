@@ -58,6 +58,7 @@ struct ShiftsView: View {
     @State private var editMode: EditMode = .inactive
     @State private var selection = Set<PersistentIdentifier>()
     @State private var isPickingJumpDate = false
+    @State private var isImportingFromText = false
     @State private var jumpDate: Date = .now
     @State private var scrollTarget: Date?
 
@@ -115,6 +116,13 @@ struct ShiftsView: View {
             }
             .sheet(isPresented: $isPickingJumpDate) {
                 jumpDateSheet
+            }
+            .sheet(isPresented: $isImportingFromText) {
+                ScheduleImportView(
+                    jobNames: jobs.filter { !$0.archived }.map(\.name)
+                ) { drafts in
+                    importDrafts(drafts)
+                }
             }
             .onAppear { applyJobFilterRequest() }
             .onChange(of: jobFilterRequest) { _, _ in applyJobFilterRequest() }
@@ -241,6 +249,13 @@ struct ShiftsView: View {
                 isPickingJumpDate = true
             }
         }
+        if ShiftIntelligence.isAvailable {
+            ToolbarItem(placement: .secondaryAction) {
+                Button("Import from Text", systemImage: "wand.and.stars") {
+                    isImportingFromText = true
+                }
+            }
+        }
     }
 
     private var filterMenu: some View {
@@ -338,6 +353,27 @@ struct ShiftsView: View {
         newShift.longitude = shift.longitude
         withAnimation {
             modelContext.insert(newShift)
+        }
+        refreshWidgets()
+    }
+
+    /// Saves model-extracted shifts, matching jobs by name.
+    private func importDrafts(_ drafts: [ResolvedShiftDraft]) {
+        let activeJobs = jobs.filter { !$0.archived }
+        withAnimation {
+            for draft in drafts {
+                let shift = Shift(
+                    start: draft.start,
+                    end: draft.end,
+                    breakMinutes: draft.breakMinutes,
+                    tips: draft.tips,
+                    notes: draft.notes,
+                    job: activeJobs.first {
+                        $0.name.localizedCaseInsensitiveCompare(draft.jobName) == .orderedSame
+                    }
+                )
+                modelContext.insert(shift)
+            }
         }
         refreshWidgets()
     }
