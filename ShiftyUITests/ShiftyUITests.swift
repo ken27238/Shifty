@@ -74,5 +74,17 @@ final class ShiftyUITests: XCTestCase {
             )
             shot("0\(5 + index)-\(tab.lowercased())")
         }
+
+        // Calendar's week timeline.
+        let calendarTab = app.tabBars.buttons["Calendar"].firstMatch
+        if calendarTab.exists {
+            calendarTab.tap()
+            let weekSegment = app.buttons["Week"].firstMatch
+            if weekSegment.waitForExistence(timeout: 3) {
+                weekSegment.tap()
+                _ = app.staticTexts["This Week"].waitForExistence(timeout: 3)
+                shot("09-calendar-week")
+            }
+        }
     }
 }

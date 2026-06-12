@@ -390,11 +390,21 @@ struct CalendarView: View {
             WeekTimeline(
                 weekStart: displayedWeek,
                 shiftsByDay: shiftsByDay,
-                calendar: calendar
+                calendar: calendar,
+                initialHour: firstShiftHour
             ) { shift in
                 shiftBeingEdited = shift
             }
         }
+        // Pin to the top; without this the view centers in leftover space.
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+
+    /// An hour just before the week's earliest shift, so the timeline
+    /// opens on the workday instead of midnight.
+    private var firstShiftHour: Int {
+        let earliest = weekShifts.map { calendar.component(.hour, from: $0.start) }.min()
+        return max((earliest ?? 9) - 1, 0)
     }
 
     private var weekTitle: String {
@@ -760,6 +770,8 @@ private struct WeekTimeline: View {
     let weekStart: Date
     let shiftsByDay: [Date: [Shift]]
     let calendar: Calendar
+    /// The hour scrolled to the top when the timeline appears.
+    var initialHour: Int = 8
     let onTap: (Shift) -> Void
 
     private let hourHeight: CGFloat = 36
@@ -771,9 +783,10 @@ private struct WeekTimeline: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Weekday header row.
+            // Weekday header row. The gutter spacer needs a fixed height —
+            // Color.clear otherwise expands vertically and inflates the row.
             HStack(spacing: 2) {
-                Color.clear.frame(width: labelWidth)
+                Color.clear.frame(width: labelWidth, height: 1)
                 ForEach(days, id: \.self) { day in
                     VStack(spacing: 0) {
                         Text(day.formatted(.dateTime.weekday(.narrow)))
@@ -789,14 +802,22 @@ private struct WeekTimeline: View {
 
             Divider()
 
-            ScrollView {
-                HStack(alignment: .top, spacing: 2) {
-                    hourLabels
-                    ForEach(days, id: \.self) { day in
-                        dayColumn(day)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    HStack(alignment: .top, spacing: 2) {
+                        hourLabels
+                        ForEach(days, id: \.self) { day in
+                            dayColumn(day)
+                        }
                     }
+                    .padding(.horizontal, 4)
                 }
-                .padding(.horizontal, 4)
+                .onAppear {
+                    proxy.scrollTo("hour-\(initialHour)", anchor: .top)
+                }
+                .onChange(of: weekStart) { _, _ in
+                    proxy.scrollTo("hour-\(initialHour)", anchor: .top)
+                }
             }
         }
     }
@@ -816,6 +837,7 @@ private struct WeekTimeline: View {
                     }
                 }
                 .frame(width: labelWidth, height: hourHeight, alignment: .topTrailing)
+                .id("hour-\(hour)")
             }
         }
     }
