@@ -6,12 +6,34 @@
 import SwiftUI
 import SwiftData
 
-enum AppTab: Hashable {
+enum AppTab: Hashable, CaseIterable, Identifiable {
     case home
     case shifts
     case calendar
     case pay
     case settings
+
+    var id: Self { self }
+
+    var title: LocalizedStringKey {
+        switch self {
+        case .home: "Home"
+        case .shifts: "Shifts"
+        case .calendar: "Calendar"
+        case .pay: "Pay"
+        case .settings: "Settings"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .home: "house"
+        case .shifts: "clock"
+        case .calendar: "calendar"
+        case .pay: "banknote"
+        case .settings: "gear"
+        }
+    }
 }
 
 struct ContentView: View {
@@ -37,6 +59,21 @@ struct ContentView: View {
     @AppStorage(SettingsKeys.overtimeWeekly, store: .shared) private var overtimeWeekly = true
     @AppStorage(SettingsKeys.appearance, store: .shared) private var appearance = "system"
     @AppStorage(SettingsKeys.accentColorName, store: .shared) private var accentColorName = ""
+
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all
+
+    /// iPad and wide layouts get a persistent sidebar split view; compact
+    /// widths keep the tab bar.
+    private var isRegularWidth: Bool {
+        #if os(iOS)
+        horizontalSizeClass == .regular
+        #else
+        true
+        #endif
+    }
 
     private var colorScheme: ColorScheme? {
         switch appearance {
@@ -90,33 +127,78 @@ struct ContentView: View {
         .accessibilityHidden(true)
     }
 
-    var body: some View {
+    /// The view for one section, reused by the tab bar and the split detail.
+    @ViewBuilder
+    private func section(_ tab: AppTab) -> some View {
+        switch tab {
+        case .home:
+            HomeView(selectedTab: $selectedTab, addShiftRequest: $addShiftRequest)
+        case .shifts:
+            ShiftsView(
+                selectedTab: $selectedTab,
+                payRequestDate: $payRequestDate,
+                jobFilterRequest: $shiftsJobFilterRequest
+            )
+        case .calendar:
+            CalendarView()
+        case .pay:
+            PayView(
+                selectedTab: $selectedTab,
+                requestedDate: $payRequestDate,
+                jobFilterRequest: $shiftsJobFilterRequest
+            )
+        case .settings:
+            SettingsView()
+        }
+    }
+
+    /// Single-selection sidebar lists take an optional binding; keep a
+    /// section always selected by ignoring deselection.
+    private var sidebarSelection: Binding<AppTab?> {
+        Binding(
+            get: { selectedTab },
+            set: { if let new = $0 { selectedTab = new } }
+        )
+    }
+
+    /// iPad: a persistent sidebar listing the sections beside the content.
+    private var splitView: some View {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
+            List(AppTab.allCases, selection: sidebarSelection) { tab in
+                Label(tab.title, systemImage: tab.icon)
+                    .tag(tab)
+            }
+            .navigationTitle("Shifty")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.large)
+            #endif
+        } detail: {
+            section(selectedTab)
+                .id(selectedTab)
+        }
+        .navigationSplitViewStyle(.balanced)
+    }
+
+    /// iPhone: the standard bottom tab bar.
+    private var tabView: some View {
         TabView(selection: $selectedTab) {
-            Tab("Home", systemImage: "house", value: .home) {
-                HomeView(selectedTab: $selectedTab, addShiftRequest: $addShiftRequest)
-            }
-            Tab("Shifts", systemImage: "clock", value: .shifts) {
-                ShiftsView(
-                    selectedTab: $selectedTab,
-                    payRequestDate: $payRequestDate,
-                    jobFilterRequest: $shiftsJobFilterRequest
-                )
-            }
-            Tab("Calendar", systemImage: "calendar", value: .calendar) {
-                CalendarView()
-            }
-            Tab("Pay", systemImage: "banknote", value: .pay) {
-                PayView(
-                    selectedTab: $selectedTab,
-                    requestedDate: $payRequestDate,
-                    jobFilterRequest: $shiftsJobFilterRequest
-                )
-            }
-            Tab("Settings", systemImage: "gear", value: .settings) {
-                SettingsView()
+            ForEach(AppTab.allCases) { tab in
+                Tab(tab.title, systemImage: tab.icon, value: tab) {
+                    section(tab)
+                }
             }
         }
         .tabViewStyle(.sidebarAdaptable)
+    }
+
+    var body: some View {
+        Group {
+            if isRegularWidth {
+                splitView
+            } else {
+                tabView
+            }
+        }
         .background { keyboardShortcuts }
         .onAppear {
             // Returning users (e.g. data synced from iCloud) skip onboarding.
