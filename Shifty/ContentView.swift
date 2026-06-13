@@ -37,7 +37,16 @@ enum AppTab: Hashable, CaseIterable, Identifiable {
 }
 
 struct ContentView: View {
-    @State private var selectedTab: AppTab = .home
+    @State private var selectedTab: AppTab = {
+        // `-startSection pay` etc. jumps straight to a section (screenshots).
+        switch UserDefaults.standard.string(forKey: "startSection") {
+        case "shifts": .shifts
+        case "calendar": .calendar
+        case "pay": .pay
+        case "settings": .settings
+        default: .home
+        }
+    }()
     /// A week the Pay tab should jump to, set when navigating from Shifts.
     @State private var payRequestDate: Date?
     /// A job the Shifts tab should filter to, set when navigating from Pay.
@@ -46,6 +55,7 @@ struct ContentView: View {
     @State private var addShiftRequest = false
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
 
+    @Environment(\.modelContext) private var modelContext
     @Query(sort: \Shift.start) private var shifts: [Shift]
     @AppStorage("remindersEnabled") private var remindersEnabled = false
     @AppStorage("reminderLeadMinutes") private var reminderLeadMinutes = 60
@@ -201,6 +211,10 @@ struct ContentView: View {
         }
         .background { keyboardShortcuts }
         .onAppear {
+            if DemoData.isRequested {
+                DemoData.seedIfNeeded(modelContext)
+                hasCompletedOnboarding = true
+            }
             // Returning users (e.g. data synced from iCloud) skip onboarding.
             if !hasCompletedOnboarding, !shifts.isEmpty {
                 hasCompletedOnboarding = true

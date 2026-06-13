@@ -19,6 +19,19 @@ struct HomeView: View {
     @State private var isAddingShift = false
     @State private var shiftBeingEdited: Shift?
 
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
+
+    /// iPad / wide layouts lay the dashboard out in two columns.
+    private var isWide: Bool {
+        #if os(iOS)
+        horizontalSizeClass == .regular
+        #else
+        true
+        #endif
+    }
+
     // Declared so the view refreshes when these settings change.
     @AppStorage(SettingsKeys.weekStartDay, store: .shared) private var weekStartDay = 0
     @AppStorage(SettingsKeys.overtimeEnabled, store: .shared) private var overtimeEnabled = false
@@ -137,38 +150,68 @@ struct HomeView: View {
 
     private var content: some View {
         ScrollView {
+            let stats = computeStats()
+
             VStack(alignment: .leading, spacing: 16) {
                 Text(Date.now.formatted(.dateTime.weekday(.wide).month(.wide).day()))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
-                let stats = computeStats()
+                if isWide {
+                    // Two columns side by side, so the wide pane isn't one
+                    // tall scroll: status on the left, schedule on the right.
+                    HStack(alignment: .top, spacing: 16) {
+                        VStack(alignment: .leading, spacing: 16) {
+                            heroCard
+                            quickActions
+                            weekCard(stats)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .top)
 
-                heroCard
-                quickActions
-                weekCard(stats)
-
-                if !comingUpShifts.isEmpty {
-                    sectionRows(
-                        title: "Coming Up",
-                        shifts: comingUpShifts,
-                        trailing: .duration
-                    )
-                }
-
-                if !recentShifts.isEmpty {
-                    sectionRows(
-                        title: "Recent",
-                        shifts: recentShifts,
-                        trailing: .earnings,
-                        accessory: ("See All", { selectedTab = .shifts })
-                    )
+                        VStack(alignment: .leading, spacing: 16) {
+                            comingUpSection
+                            recentSection
+                            if comingUpShifts.isEmpty && recentShifts.isEmpty {
+                                Spacer(minLength: 0)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .top)
+                    }
+                } else {
+                    heroCard
+                    quickActions
+                    weekCard(stats)
+                    comingUpSection
+                    recentSection
                 }
             }
             .padding(.horizontal)
             .padding(.bottom)
-            .frame(maxWidth: 700)
+            .frame(maxWidth: isWide ? 900 : 700)
             .frame(maxWidth: .infinity)
+        }
+    }
+
+    @ViewBuilder
+    private var comingUpSection: some View {
+        if !comingUpShifts.isEmpty {
+            sectionRows(
+                title: "Coming Up",
+                shifts: comingUpShifts,
+                trailing: .duration
+            )
+        }
+    }
+
+    @ViewBuilder
+    private var recentSection: some View {
+        if !recentShifts.isEmpty {
+            sectionRows(
+                title: "Recent",
+                shifts: recentShifts,
+                trailing: .earnings,
+                accessory: ("See All", { selectedTab = .shifts })
+            )
         }
     }
 

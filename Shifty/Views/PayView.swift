@@ -47,6 +47,19 @@ struct PayView: View {
     @AppStorage(SettingsKeys.currencyOverride, store: .shared) private var currencyOverride = ""
     @AppStorage(SettingsKeys.tipsEnabled, store: .shared) private var tipsEnabled = true
 
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
+
+    /// iPad / wide layouts place the two charts side by side.
+    private var isWide: Bool {
+        #if os(iOS)
+        horizontalSizeClass == .regular
+        #else
+        true
+        #endif
+    }
+
     private var calendar: Calendar { .app }
 
     private var payCycle: PayCycle { PayCycle.load() }
@@ -262,10 +275,17 @@ struct PayView: View {
                     if stats.breakdown.count > 1 {
                         byJobSection(stats)
                     }
-                    chartSection(stats)
+                    if isWide {
+                        chartsRow(stats)
+                    } else {
+                        chartSection(stats)
+                        trendSection(stats)
+                    }
                 }
 
-                trendSection(stats)
+                if stats.shifts.isEmpty || !isWide {
+                    trendSection(stats)
+                }
             }
             .navigationTitle("Pay")
             .toolbar {
@@ -503,54 +523,76 @@ struct PayView: View {
         }
     }
 
-    private func chartSection(_ stats: PeriodStats) -> some View {
-        Section("Earnings by Day") {
-            Chart(stats.daily) { entry in
-                BarMark(
-                    x: .value("Day", entry.day, unit: .day),
-                    y: .value("Earnings", entry.earnings)
-                )
-                .foregroundStyle(by: .value("Job", entry.jobName))
-                .cornerRadius(4)
-            }
-            .chartForegroundStyleScale(
-                domain: stats.breakdown.map(\.name),
-                range: stats.breakdown.map(\.color)
+    private func dailyChart(_ stats: PeriodStats) -> some View {
+        Chart(stats.daily) { entry in
+            BarMark(
+                x: .value("Day", entry.day, unit: .day),
+                y: .value("Earnings", entry.earnings)
             )
-            .chartLegend(stats.breakdown.count > 1 ? .visible : .hidden)
-            .chartXAxis {
-                if period == .week {
-                    AxisMarks(values: .stride(by: .day)) { _ in
-                        AxisGridLine()
-                        AxisValueLabel(format: .dateTime.weekday(.narrow), centered: true)
-                    }
-                } else {
-                    AxisMarks()
-                }
-            }
-            .frame(height: 200)
-            .padding(.vertical, 8)
-            .accessibilityLabel("Bar chart of earnings per day")
+            .foregroundStyle(by: .value("Job", entry.jobName))
+            .cornerRadius(4)
         }
+        .chartForegroundStyleScale(
+            domain: stats.breakdown.map(\.name),
+            range: stats.breakdown.map(\.color)
+        )
+        .chartLegend(stats.breakdown.count > 1 ? .visible : .hidden)
+        .chartXAxis {
+            if period == .week {
+                AxisMarks(values: .stride(by: .day)) { _ in
+                    AxisGridLine()
+                    AxisValueLabel(format: .dateTime.weekday(.narrow), centered: true)
+                }
+            } else {
+                AxisMarks()
+            }
+        }
+        .frame(height: 200)
+        .padding(.vertical, 8)
+        .accessibilityLabel("Bar chart of earnings per day")
+    }
+
+    private func trendChart(_ stats: PeriodStats) -> some View {
+        Chart(stats.trend, id: \.start) { entry in
+            BarMark(
+                x: .value("Period", entry.label),
+                y: .value("Earnings", entry.earnings)
+            )
+            .foregroundStyle(
+                entry.start == interval.start
+                    ? Color.accentColor
+                    : Color.accentColor.opacity(0.35)
+            )
+            .cornerRadius(3)
+        }
+        .frame(height: 200)
+        .padding(.vertical, 8)
+        .accessibilityLabel("Bar chart of earnings for recent \(periodNoun)s; the highlighted bar is the displayed \(periodNoun)")
+    }
+
+    private func chartSection(_ stats: PeriodStats) -> some View {
+        Section("Earnings by Day") { dailyChart(stats) }
     }
 
     private func trendSection(_ stats: PeriodStats) -> some View {
-        Section("Trend") {
-            Chart(stats.trend, id: \.start) { entry in
-                BarMark(
-                    x: .value("Period", entry.label),
-                    y: .value("Earnings", entry.earnings)
-                )
-                .foregroundStyle(
-                    entry.start == interval.start
-                        ? Color.accentColor
-                        : Color.accentColor.opacity(0.35)
-                )
-                .cornerRadius(3)
+        Section("Trend") { trendChart(stats) }
+    }
+
+    /// Both charts side by side for wide layouts.
+    private func chartsRow(_ stats: PeriodStats) -> some View {
+        Section {
+            HStack(alignment: .top, spacing: 24) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Earnings by Day")
+                        .font(.subheadline.weight(.medium))
+                    dailyChart(stats)
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Trend")
+                        .font(.subheadline.weight(.medium))
+                    trendChart(stats)
+                }
             }
-            .frame(height: 140)
-            .padding(.vertical, 8)
-            .accessibilityLabel("Bar chart of earnings for recent \(periodNoun)s; the highlighted bar is the displayed \(periodNoun)")
         }
     }
 
