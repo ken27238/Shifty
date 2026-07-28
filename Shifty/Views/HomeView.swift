@@ -18,6 +18,8 @@ struct HomeView: View {
 
     @State private var isAddingShift = false
     @State private var shiftBeingEdited: Shift?
+    /// Bumped by pull-to-refresh to re-evaluate "now"-relative content.
+    @State private var refreshToken = 0
 
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -150,6 +152,9 @@ struct HomeView: View {
 
     private var content: some View {
         ScrollView {
+            // Reading this makes a pull-to-refresh recompute the
+            // time-relative sections (Happening Now, countdowns, totals).
+            let _ = refreshToken
             let stats = computeStats()
 
             VStack(alignment: .leading, spacing: 16) {
@@ -189,6 +194,10 @@ struct HomeView: View {
             .padding(.bottom)
             .frame(maxWidth: isWide ? 900 : 700)
             .frame(maxWidth: .infinity)
+        }
+        .refreshable {
+            refreshToken &+= 1
+            refreshWidgets()
         }
     }
 

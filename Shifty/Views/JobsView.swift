@@ -5,6 +5,7 @@
 
 import SwiftUI
 import SwiftData
+import CoreLocation
 
 struct JobsView: View {
     @Environment(\.modelContext) private var modelContext

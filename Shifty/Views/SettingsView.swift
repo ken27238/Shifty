@@ -237,7 +237,9 @@ struct SettingsView: View {
                     Text(code).tag(code)
                 }
             }
+            #if os(iOS)
             .pickerStyle(.navigationLink)
+            #endif
             Picker("Week Starts On", selection: $weekStartDay) {
                 Text("System Default").tag(0)
                 // Any weekday, so weeks can match an employer's pay schedule.
@@ -317,7 +319,9 @@ struct SettingsView: View {
                     Text(name.capitalized).tag(name)
                 }
             }
+            #if os(iOS)
             .pickerStyle(.navigationLink)
+            #endif
         }
     }
 

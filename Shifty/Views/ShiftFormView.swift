@@ -5,6 +5,7 @@
 
 import SwiftUI
 import SwiftData
+import CoreLocation
 
 /// Add a new shift (pass nothing) or edit an existing one (pass `shift`).
 struct ShiftFormView: View {

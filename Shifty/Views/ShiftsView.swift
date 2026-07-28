@@ -55,7 +55,13 @@ struct ShiftsView: View {
     @State private var shiftBeingEdited: Shift?
     @State private var searchText = ""
     @State private var jobFilterName: String?
+    // EditMode is iOS-only; macOS uses plain multi-selection instead.
+    #if os(iOS)
     @State private var editMode: EditMode = .inactive
+    private var isEditing: Bool { editMode.isEditing }
+    #else
+    @State private var isEditing = false
+    #endif
     @State private var selection = Set<PersistentIdentifier>()
     @State private var isPickingJumpDate = false
     @State private var isImportingFromText = false
@@ -154,7 +160,9 @@ struct ShiftsView: View {
                         .id(week.weekStart)
                 }
             }
+            #if os(iOS)
             .environment(\.editMode, $editMode)
+            #endif
             .onChange(of: scrollTarget) { _, target in
                 guard let target else { return }
                 withAnimation {
@@ -172,7 +180,7 @@ struct ShiftsView: View {
         return Section {
             ForEach(week.shifts) { shift in
                 Button {
-                    guard !editMode.isEditing else { return }
+                    guard !isEditing else { return }
                     shiftBeingEdited = shift
                 } label: {
                     ShiftRow(
@@ -393,7 +401,11 @@ struct ShiftsView: View {
                 }
             }
             selection.removeAll()
+            #if os(iOS)
             editMode = .inactive
+            #else
+            isEditing = false
+            #endif
         }
         refreshWidgets()
     }
