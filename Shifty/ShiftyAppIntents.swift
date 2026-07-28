@@ -6,6 +6,7 @@
 import AppIntents
 import SwiftData
 import Foundation
+import WidgetKit
 
 /// Opens the shared store the same way the app does (read-only is fine here;
 /// these intents only summarize).
@@ -59,6 +60,79 @@ struct HoursThisWeekIntent: AppIntent {
     }
 }
 
+/// Logs a shift from spoken parameters — "log 8 hours at Cafe today" —
+/// without opening the app.
+struct LogHoursIntent: AppIntent {
+    static let title: LocalizedStringResource = "Log Hours"
+    static let description = IntentDescription("Logs a shift of a given length, without opening the app.")
+
+    @Parameter(title: "Hours", inclusiveRange: (0.5, 24))
+    var hours: Double
+
+    @Parameter(title: "Job")
+    var jobName: String?
+
+    @Parameter(title: "Day")
+    var day: Date?
+
+    static var parameterSummary: some ParameterSummary {
+        Summary("Log \(\.$hours) hours at \(\.$jobName) on \(\.$day)")
+    }
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        AppSettings.registerDefaults()
+        let container = try ModelContainer(
+            for: .shifty,
+            configurations: ModelConfiguration(
+                schema: .shifty,
+                groupContainer: .identifier(AppGroup.identifier),
+                cloudKitDatabase: .none
+            )
+        )
+        let context = container.mainContext
+        let jobs = try context.fetch(FetchDescriptor<Job>()).filter { !$0.archived }
+
+        // Resolve the job by spoken name, else the default job, else the
+        // only one there is.
+        let defaultName = UserDefaults.shared.string(forKey: SettingsKeys.defaultJobName) ?? ""
+        let job: Job? = if let jobName, !jobName.isEmpty {
+            jobs.first { $0.name.localizedCaseInsensitiveContains(jobName) }
+        } else if !defaultName.isEmpty {
+            jobs.first { $0.name == defaultName }
+        } else {
+            jobs.count == 1 ? jobs.first : nil
+        }
+
+        let calendar = Calendar.app
+        let targetDay = calendar.startOfDay(for: day ?? .now)
+        let startMinutes = UserDefaults.shared.integer(forKey: SettingsKeys.defaultStartMinutes)
+        let start = calendar.date(
+            bySettingHour: startMinutes / 60,
+            minute: startMinutes % 60,
+            second: 0,
+            of: targetDay
+        ) ?? targetDay
+
+        let shift = Shift(
+            start: start,
+            end: start.addingTimeInterval(hours * 3600),
+            job: job
+        )
+        context.insert(shift)
+        try context.save()
+        WidgetCenter.shared.reloadAllTimelines()
+
+        let dayText = calendar.isDateInToday(start)
+            ? String(localized: "today")
+            : start.formatted(.dateTime.weekday(.wide).month(.wide).day())
+        if let job {
+            return .result(dialog: "Logged \(hours.formatted(.number.precision(.fractionLength(0...1)))) hours at \(job.name) \(dayText).")
+        }
+        return .result(dialog: "Logged \(hours.formatted(.number.precision(.fractionLength(0...1)))) hours \(dayText).")
+    }
+}
+
 struct LogShiftIntent: AppIntent {
     static let title: LocalizedStringResource = "Log a Shift"
     static let description = IntentDescription("Opens Shifty to log a new shift.")
@@ -101,6 +175,15 @@ struct ShiftyShortcuts: AppShortcutsProvider {
             ],
             shortTitle: "Log Shift",
             systemImageName: "plus.circle"
+        )
+        AppShortcut(
+            intent: LogHoursIntent(),
+            phrases: [
+                "Log hours in \(.applicationName)",
+                "Log my hours with \(.applicationName)",
+            ],
+            shortTitle: "Log Hours",
+            systemImageName: "clock.badge.checkmark"
         )
     }
 }

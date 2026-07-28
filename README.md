@@ -75,6 +75,12 @@ xcodebuild test -scheme Shifty -destination '<simulator>' -only-testing:ShiftyUI
 
 Everything stays on your devices and in your private iCloud database. The app collects nothing, tracks nothing, and ships privacy manifests for the app and each extension. Apple Intelligence features process text on-device. Location is only ever a workplace pin you chose — the app never requests your location.
 
+Full text: [docs/PRIVACY.md](docs/PRIVACY.md).
+
+## Shipping
+
+[docs/SUBMISSION.md](docs/SUBMISSION.md) covers TestFlight and App Store prep — including the current blocker (the project builds against beta Xcode 27 / iOS 26, and the App Store requires a released SDK), the CloudKit production-schema step, and reviewer notes.
+
 ## License
 
 No license has been chosen yet — all rights reserved until one is added.
